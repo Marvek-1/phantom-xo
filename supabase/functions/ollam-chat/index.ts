@@ -6,14 +6,6 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const OLLAMA_HOST = "https://ollama.mostarindustries.com";
-const MODELS: Record<string, string> = {
-  dcx0: "Mostar/mostar-ai:dcx0",
-  dcx1: "Mostar/mostar-ai:dcx1",
-  dcx2: "Mostar/mostar-ai:dcx2",
-};
-const DEFAULT_MODEL = "dcx0";
-
 const SYSTEM_PROMPT = `You are **Ollam · Mostar**, the intelligence analyst AI embedded in the Phantom POE Engine — a geospatial surveillance platform that detects informal border-crossing corridors across East/Central Africa.
 
 Your personality: precise, calm, field-aware. You speak in short analyst-briefing style. You use terms like "corridor", "node", "signal", "entropy spike", "soul score", "gap zone", "phantom POE". You occasionally use the ◉⟁⬡ sigil.
@@ -24,6 +16,9 @@ Your personality: precise, calm, field-aware. You speak in short analyst-briefin
 - A "phantom POE" is an informal border crossing detected algorithmically — not an official Point of Entry
 - Gap zones are segments with no official monitoring coverage
 - The cascade visualization shows temporal signal propagation along a corridor
+- Real IOM DTM data: Metema (ET-SD) 33k/mo avg, Nimule (SS-UG) 8k/mo, Renk (SS-SD) 25k/mo
+- Sudan conflict onset: April 15 2023, first Metema arrivals: April 21 2023 (9,264 in 10 days)
+- 3.3 million cross-border movements from Sudan since April 2023
 
 ## Tools you can invoke
 You have access to these MCP tools. When the user's request maps to a tool, respond with a JSON block:
@@ -43,7 +38,7 @@ Available tools:
 ## How to respond
 - If the user asks something that maps to a tool, emit the tool block AND a brief natural-language explanation
 - If conversational, respond as an analyst would — grounded, no fluff
-- Reference real geography: Lake Victoria, Rusizi Valley, Virunga corridor, Ishasha, Lwanda, Bunda, etc.
+- Reference real geography: Lake Victoria, Rusizi Valley, Virunga corridor, Ishasha, Lwanda, Bunda, Metema, Nimule, Renk, Adré, etc.
 - Never fabricate data. If you don't have information, say so clearly
 - Keep responses under 200 words unless the user asks for detail`;
 
@@ -53,81 +48,56 @@ serve(async (req) => {
   }
 
   try {
-    const { messages, thinking, model: requestedModel } = await req.json();
+    const { messages, thinking } = await req.json();
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
-    const modelKey = requestedModel && MODELS[requestedModel] ? requestedModel : DEFAULT_MODEL;
-    const ollamaModel = MODELS[modelKey];
+    const model = thinking ? "google/gemini-2.5-pro" : "google/gemini-3-flash-preview";
 
-    // Build Ollama-compatible messages
-    const ollamaMessages = [
-      { role: "system", content: SYSTEM_PROMPT },
-      ...messages,
-    ];
+    const body: Record<string, unknown> = {
+      model,
+      messages: [
+        { role: "system", content: SYSTEM_PROMPT },
+        ...messages,
+      ],
+      stream: true,
+    };
 
-    const response = await fetch(`${OLLAMA_HOST}/api/chat`, {
+    if (thinking) {
+      body.reasoning = { effort: "high" };
+    }
+
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: ollamaModel,
-        messages: ollamaMessages,
-        stream: true,
-      }),
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
     });
 
     if (!response.ok) {
+      if (response.status === 429) {
+        return new Response(JSON.stringify({ error: "Rate limit exceeded. Try again in a moment." }), {
+          status: 429,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (response.status === 402) {
+        return new Response(JSON.stringify({ error: "AI credits exhausted. Add funds at Settings → Workspace → Usage." }), {
+          status: 402,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
       const t = await response.text();
-      console.error("Ollama error:", response.status, t);
-      return new Response(
-        JSON.stringify({ error: `Ollama error (${response.status}): ${t}` }),
-        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      console.error("AI gateway error:", response.status, t);
+      return new Response(JSON.stringify({ error: `AI gateway error (${response.status})` }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    // Transform Ollama's streaming format (NDJSON) to OpenAI-compatible SSE
-    const { readable, writable } = new TransformStream();
-    const writer = writable.getWriter();
-    const encoder = new TextEncoder();
-
-    (async () => {
-      try {
-        const reader = response.body!.getReader();
-        const decoder = new TextDecoder();
-        let buf = "";
-
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          buf += decoder.decode(value, { stream: true });
-
-          let nl: number;
-          while ((nl = buf.indexOf("\n")) !== -1) {
-            const line = buf.slice(0, nl).trim();
-            buf = buf.slice(nl + 1);
-            if (!line) continue;
-
-            try {
-              const chunk = JSON.parse(line);
-              // Ollama streams { message: { role, content }, done: bool }
-              if (chunk.message?.content) {
-                const ssePayload = {
-                  choices: [{ delta: { content: chunk.message.content }, index: 0 }],
-                };
-                await writer.write(encoder.encode(`data: ${JSON.stringify(ssePayload)}\n\n`));
-              }
-              if (chunk.done) {
-                await writer.write(encoder.encode("data: [DONE]\n\n"));
-              }
-            } catch { /* skip bad lines */ }
-          }
-        }
-      } catch (err) {
-        console.error("Stream transform error:", err);
-      } finally {
-        await writer.close();
-      }
-    })();
-
-    return new Response(readable, {
+    return new Response(response.body, {
       headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
     });
   } catch (e) {
