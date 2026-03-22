@@ -12,6 +12,7 @@ import { drawGapZones } from "./cesium/drawGapZones";
 import { drawAllCorridors } from "./cesium/drawAllCorridors";
 import { drawNodes } from "./cesium/drawNodes";
 import { drawEvidenceLayer, toggleEvidenceEntities } from "./cesium/drawEvidenceLayer";
+import { drawBorders } from "./cesium/drawBorders";
 import { createCascadeEngine, type CascadeState } from "./cesium/cascadeEngine";
 import type { EvidenceSignal } from "./cesium/drawEvidenceLayer";
 
