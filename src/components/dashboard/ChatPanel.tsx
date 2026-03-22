@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from "react";
 import { Send, Mic, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
-import type { MapParams, ChatState } from "@/types/phantom";
+import type { MapParams } from "@/types/phantom";
 import { ChatState as CS } from "@/types/phantom";
+import { callMcpTool } from "@/lib/mcp-client";
 
 const EXAMPLE_PROMPTS = [
   "Fly to the corridor between Lwanda KE and Bunda TZ.",
