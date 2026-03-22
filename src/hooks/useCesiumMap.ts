@@ -2,15 +2,13 @@ import { useRef, useEffect, useCallback, useState } from "react";
 import * as Cesium from "cesium";
 import type { MapParams, CesiumCameraTarget, CorridorTrack, RadarPulse, CorridorAnalysisResult } from "@/types/phantom";
 import { supabase } from "@/integrations/supabase/client";
-
-const T = {
-  bg: "#070A10",
-  green: "#00E87A",
-  amber: "#F5A623",
-  red: "#FF453A",
-  blue: "#009ADE",
-  teal: "#3DD9C4",
-};
+import type { CesiumDrawContext } from "./cesium/types";
+import { T } from "./cesium/types";
+import { drawCorridor } from "./cesium/drawCorridor";
+import { drawRadar } from "./cesium/drawRadar";
+import { drawAnalysis } from "./cesium/drawAnalysis";
+import { drawOfficialPOEs } from "./cesium/drawOfficialPOEs";
+import { drawGapZones } from "./cesium/drawGapZones";
 
 export function useCesiumMap(containerRef: React.RefObject<HTMLDivElement | null>) {
   const viewerRef = useRef<Cesium.Viewer | null>(null);
@@ -18,6 +16,21 @@ export function useCesiumMap(containerRef: React.RefObject<HTMLDivElement | null
   const [mapReady, setMapReady] = useState(false);
   const [radarActive, setRadarActive] = useState(false);
   const [monitoredId, setMonitoredId] = useState<string | null>(null);
+  const [officialPOEsVisible, setOfficialPOEsVisible] = useState(true);
+
+  // Shared entity helper
+  const addEntity = useCallback((id: string, options: Cesium.Entity.ConstructorOptions) => {
+    const viewer = viewerRef.current;
+    if (!viewer) return;
+    viewer.entities.add({ id, ...options });
+    entityIdsRef.current.push(id);
+  }, []);
+
+  const getDrawContext = useCallback((): CesiumDrawContext | null => {
+    const viewer = viewerRef.current;
+    if (!viewer) return null;
+    return { viewer, entityIds: entityIdsRef.current, addEntity };
+  }, [addEntity]);
 
   useEffect(() => {
     if (!containerRef.current || viewerRef.current) return;
@@ -104,13 +117,6 @@ export function useCesiumMap(containerRef: React.RefObject<HTMLDivElement | null
     setRadarActive(false);
   }, []);
 
-  const addEntity = useCallback((id: string, options: Cesium.Entity.ConstructorOptions) => {
-    const viewer = viewerRef.current;
-    if (!viewer) return;
-    viewer.entities.add({ id, ...options });
-    entityIdsRef.current.push(id);
-  }, []);
-
   const flyTo = useCallback((target: CesiumCameraTarget) => {
     const viewer = viewerRef.current;
     if (!viewer) return;
@@ -126,148 +132,57 @@ export function useCesiumMap(containerRef: React.RefObject<HTMLDivElement | null
     });
   }, []);
 
-  const drawCorridor = useCallback((corridor: CorridorTrack) => {
-    const viewer = viewerRef.current;
-    if (!viewer) return;
+  const loadOfficialPOEs = useCallback(async () => {
+    const ctx = getDrawContext();
+    if (!ctx) return;
+    await drawOfficialPOEs(ctx);
+  }, [getDrawContext]);
 
-    setMonitoredId(corridor.id);
-    setRadarActive(true);
-
-    const positions = corridor.pathCoords
-      ? Cesium.Cartesian3.fromDegreesArray(corridor.pathCoords.flatMap((p) => [p.lng, p.lat]))
-      : Cesium.Cartesian3.fromDegreesArray([corridor.startLng, corridor.startLat, corridor.endLng, corridor.endLat]);
-
-    addEntity(`${corridor.id}-glow`, {
-      polyline: { positions, clampToGround: true, width: 20, material: Cesium.Color.fromCssColorString(T.green).withAlpha(0.1) },
-    });
-    addEntity(`${corridor.id}-dash`, {
-      polyline: {
-        positions, clampToGround: true, width: 5,
-        material: new Cesium.PolylineDashMaterialProperty({
-          color: Cesium.Color.fromCssColorString(T.green).withAlpha(0.7), dashLength: 20, dashPattern: 255,
-        }),
-      },
-    });
-    addEntity(`${corridor.id}-spine`, {
-      polyline: { positions, clampToGround: true, width: 3, material: Cesium.Color.fromCssColorString(T.green) },
-    });
-
-    const markers: Array<[number, number, string, string]> = [
-      [corridor.startLat, corridor.startLng, "START", T.green],
-      [corridor.endLat, corridor.endLng, "END", T.red],
-    ];
-    for (const [lat, lng, label, color] of markers) {
-      addEntity(`${corridor.id}-marker-${label}`, {
-        position: Cesium.Cartesian3.fromDegrees(lng, lat),
-        point: {
-          pixelSize: 10, color: Cesium.Color.fromCssColorString(color),
-          outlineColor: Cesium.Color.fromCssColorString(T.bg), outlineWidth: 2,
-          disableDepthTestDistance: Number.POSITIVE_INFINITY,
-          heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
-        },
-        label: {
-          text: label, font: '11px "IBM Plex Mono",monospace',
-          fillColor: Cesium.Color.fromCssColorString(color),
-          outlineColor: Cesium.Color.fromCssColorString(T.bg), outlineWidth: 3,
-          style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-          verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
-          horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
-          pixelOffset: new Cesium.Cartesian2(0, -16),
-          disableDepthTestDistance: Number.POSITIVE_INFINITY,
-        },
-      });
-    }
-  }, [addEntity]);
-
-  const drawRadar = useCallback((radar: RadarPulse) => {
-    const viewer = viewerRef.current;
-    if (!viewer) return;
-    setMonitoredId(radar.corridorId);
-    setRadarActive(true);
-
-    for (let ring = 0; ring < 3; ring++) {
-      const ringId = `${radar.corridorId}-radar-${ring}`;
-      const coords = new Cesium.CallbackProperty(() => {
-        const t = Date.now() / 1000;
-        const radius = ((t + ring * 0.4) % 1.2) * 0.006;
-        const segs = 48;
-        const pts: Cesium.Cartesian3[] = [];
-        for (let i = 0; i <= segs; i++) {
-          const a = (i / segs) * Math.PI * 2;
-          pts.push(Cesium.Cartesian3.fromDegrees(radar.lng + Math.cos(a) * radius, radar.lat + Math.sin(a) * radius));
-        }
-        return pts;
-      }, false);
-      addEntity(ringId, {
-        polyline: { positions: coords, clampToGround: true, width: 2, material: Cesium.Color.fromCssColorString(T.green).withAlpha(0.7) },
-      });
-    }
-  }, [addEntity]);
-
-  const drawAnalysis = useCallback((analysis: CorridorAnalysisResult) => {
-    const viewer = viewerRef.current;
-    if (!viewer) return;
-
-    if (analysis.inferredPath?.coordinates) {
-      addEntity(`${analysis.id}-inferred-path`, {
-        polyline: {
-          positions: Cesium.Cartesian3.fromDegreesArray(analysis.inferredPath.coordinates.flatMap((c) => [c.lng, c.lat])),
-          clampToGround: true, width: 5,
-          material: Cesium.Color.fromCssColorString(T.amber).withAlpha(0.9),
-        },
-      });
-    }
-
-    for (const node of analysis.nodes ?? []) {
-      const nc = node.type === "PHANTOM_POE" ? T.amber : T.blue;
-      addEntity(`${analysis.id}-node-${node.id}`, {
-        position: Cesium.Cartesian3.fromDegrees(node.lng, node.lat),
-        point: {
-          pixelSize: node.type === "PHANTOM_POE" ? 13 : 9,
-          color: Cesium.Color.fromCssColorString(nc),
-          outlineColor: Cesium.Color.fromCssColorString(T.bg), outlineWidth: 2,
-          disableDepthTestDistance: Number.POSITIVE_INFINITY,
-          heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
-        },
-        label: {
-          text: node.name, font: '11px "IBM Plex Mono",monospace',
-          fillColor: Cesium.Color.fromCssColorString(nc),
-          outlineColor: Cesium.Color.fromCssColorString(T.bg), outlineWidth: 3,
-          style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-          verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
-          horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
-          pixelOffset: new Cesium.Cartesian2(0, -16),
-          disableDepthTestDistance: Number.POSITIVE_INFINITY,
-        },
-      });
-    }
-
-    if (analysis.locationBeliefs) {
-      for (const [bId, belief] of Object.entries(analysis.locationBeliefs)) {
-        const radius = belief.radiusM / 111320;
-        const segs = 32;
-        const pts: number[] = [];
-        for (let i = 0; i <= segs; i++) {
-          const a = (i / segs) * Math.PI * 2;
-          pts.push(belief.center.lng + Math.cos(a) * radius, belief.center.lat + Math.sin(a) * radius);
-        }
-        addEntity(`belief-${bId}`, {
-          polyline: {
-            positions: Cesium.Cartesian3.fromDegreesArray(pts),
-            clampToGround: true, width: 2,
-            material: Cesium.Color.YELLOW.withAlpha(belief.confidence ?? 0.5),
-          },
-        });
-      }
-    }
-  }, [addEntity]);
+  const loadGapZones = useCallback(async (corridorDefId: string) => {
+    const ctx = getDrawContext();
+    if (!ctx) return;
+    await drawGapZones(ctx, corridorDefId);
+  }, [getDrawContext]);
 
   const handleMapQuery = useCallback((params: MapParams) => {
-    if (params.camera) flyTo(params.camera);
-    if (params.corridor) drawCorridor(params.corridor);
-    if (params.radar) drawRadar(params.radar);
-    if (params.corridorAnalysis) drawAnalysis(params.corridorAnalysis);
-  }, [flyTo, drawCorridor, drawRadar, drawAnalysis]);
+    const ctx = getDrawContext();
+    if (!ctx) return;
 
-  return { viewer: viewerRef, mapReady, radarActive, monitoredId, clearEntities, handleMapQuery };
+    if (params.camera) flyTo(params.camera);
+
+    if (params.corridor) {
+      setMonitoredId(params.corridor.id);
+      setRadarActive(true);
+      drawCorridor(ctx, params.corridor);
+    }
+
+    if (params.radar) {
+      setMonitoredId(params.radar.corridorId);
+      setRadarActive(true);
+      drawRadar(ctx, params.radar);
+    }
+
+    if (params.corridorAnalysis) {
+      drawAnalysis(ctx, params.corridorAnalysis);
+    }
+  }, [flyTo, getDrawContext]);
+
+  // Load official POEs when map is ready and visible
+  useEffect(() => {
+    if (mapReady && officialPOEsVisible) {
+      loadOfficialPOEs();
+    }
+  }, [mapReady, officialPOEsVisible, loadOfficialPOEs]);
+
+  return {
+    viewer: viewerRef,
+    mapReady,
+    radarActive,
+    monitoredId,
+    officialPOEsVisible,
+    setOfficialPOEsVisible,
+    clearEntities,
+    handleMapQuery,
+    loadGapZones,
+  };
 }
