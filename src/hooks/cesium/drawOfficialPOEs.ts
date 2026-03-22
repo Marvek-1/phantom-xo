@@ -10,7 +10,7 @@ import { T, type CesiumDrawContext } from "./types";
 export async function drawOfficialPOEs(ctx: CesiumDrawContext) {
   const { data, error } = await supabase
     .from("corridor_nodes")
-    .select("id, name, lat, lng, country_code:country, node_type")
+    .select("id, name, lat, lng, country_code, node_type")
     .eq("node_type", "FORMAL_POE");
 
   if (error || !data) return;
