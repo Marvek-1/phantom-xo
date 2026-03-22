@@ -174,7 +174,7 @@ const ChatPanel = ({ collapsed, onToggle, onMapQuery }: ChatPanelProps) => {
                   ◉⟁⬡
                 </span>
                 <p className="text-xs text-muted-foreground text-center max-w-[240px] leading-relaxed">
-                  Ollam · Mostar is online. Ask about corridors, signals, threat analysis, or give direct commands.
+                  Phantom AI is online. Ask about corridors, signals, threat analysis, or give direct commands.
                 </p>
                 <div className="flex flex-wrap gap-1.5 justify-center max-w-[280px] mt-2">
                   {EXAMPLE_PROMPTS.slice(0, 3).map((p, i) => (
