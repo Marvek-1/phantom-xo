@@ -45,21 +45,100 @@ const ChatPanel = ({ collapsed, onToggle, onMapQuery }: ChatPanelProps) => {
 
     setMessages((prev) => [...prev, { role: "user", content: msg }]);
     setInput("");
-    setChatState(CS.GENERATING);
+    setChatState(CS.EXECUTING);
 
-    // TODO: Wire to MCP edge function via supabase.functions.invoke
-    // For now, echo back
-    setTimeout(() => {
+    try {
+      // Parse simple tool commands from natural language
+      const toolCall = parseToolFromMessage(msg);
+      if (toolCall) {
+        const result = await callMcpTool(toolCall.tool, toolCall.args);
+        if (result.mapParams && onMapQuery) {
+          onMapQuery(result.mapParams);
+        }
+        setMessages((prev) => [
+          ...prev,
+          { role: "assistant", content: result.text },
+        ]);
+      } else {
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            content: `◉ Query received: "${msg}"\n\nUse direct commands like:\n• "fly to lat -1.5 lng 34.0"\n• "analyze CORRIDOR-KE-TZ-047 start -0.60,34.10 end -2.45,33.80"\n• "radar scan CORRIDOR-KE-TZ-047 start -0.60,34.10 end -2.45,33.80"\n• "test connections"`,
+          },
+        ]);
+      }
+    } catch (err) {
       setMessages((prev) => [
         ...prev,
-        {
-          role: "assistant",
-          content: `◉ Received query: "${msg}"\n\nMCP server integration pending — connect via backend functions to process corridor intelligence queries.`,
-        },
+        { role: "assistant", content: `◉ Error: ${err instanceof Error ? err.message : String(err)}` },
       ]);
+    } finally {
       setChatState(CS.IDLE);
-    }, 1200);
+    }
   };
+
+  // Simple command parser — extracts tool + args from natural language
+  function parseToolFromMessage(msg: string): { tool: string; args: Record<string, unknown> } | null {
+    const lower = msg.toLowerCase();
+
+    // test connections
+    if (lower.includes("test connection") || lower.includes("diagnostic") || lower.includes("run diagnostics")) {
+      return { tool: "test_connections", args: {} };
+    }
+
+    // fly to lat/lng
+    const flyMatch = msg.match(/fly\s+to\s+.*?(?:lat\s*)?(-?\d+\.?\d*)[,\s]+(?:lng\s*)?(-?\d+\.?\d*)/i);
+    if (flyMatch) {
+      return {
+        tool: "view_location",
+        args: { lat: parseFloat(flyMatch[1]), lng: parseFloat(flyMatch[2]), label: msg },
+      };
+    }
+
+    // analyze corridor
+    const analyzeMatch = msg.match(/analyze\s+(CORRIDOR[^\s]+)\s+.*?start\s*(-?\d+\.?\d*)[,\s]+(-?\d+\.?\d*)\s+.*?end\s*(-?\d+\.?\d*)[,\s]+(-?\d+\.?\d*)/i);
+    if (analyzeMatch) {
+      return {
+        tool: "analyze_corridor",
+        args: {
+          corridorId: analyzeMatch[1],
+          locationA: "Node A",
+          locationB: "Node B",
+          startLat: parseFloat(analyzeMatch[2]),
+          startLng: parseFloat(analyzeMatch[3]),
+          endLat: parseFloat(analyzeMatch[4]),
+          endLng: parseFloat(analyzeMatch[5]),
+        },
+      };
+    }
+
+    // radar scan
+    const radarMatch = msg.match(/radar\s+(?:scan\s+)?(CORRIDOR[^\s]+)\s+.*?start\s*(-?\d+\.?\d*)[,\s]+(-?\d+\.?\d*)\s+.*?end\s*(-?\d+\.?\d*)[,\s]+(-?\d+\.?\d*)/i);
+    if (radarMatch) {
+      return {
+        tool: "radar_scan",
+        args: {
+          corridorId: radarMatch[1],
+          startLat: parseFloat(radarMatch[2]),
+          startLng: parseFloat(radarMatch[3]),
+          endLat: parseFloat(radarMatch[4]),
+          endLng: parseFloat(radarMatch[5]),
+        },
+      };
+    }
+
+    // fetch signals
+    const signalMatch = msg.match(/(?:fetch|get)\s+.*?signal.*?(?:lat\s*)?(-?\d+\.?\d*)[,\s]+(?:lng\s*)?(-?\d+\.?\d*)/i);
+    if (signalMatch) {
+      return {
+        tool: "fetch_sentinel_signals",
+        args: { lat: parseFloat(signalMatch[1]), lng: parseFloat(signalMatch[2]) },
+      };
+    }
+
+    return null;
+  }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
