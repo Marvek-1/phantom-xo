@@ -1,4 +1,12 @@
+import { useState } from "react";
 import type { CorridorAnalysisResult } from "@/types/phantom";
+
+const SOURCE_COLORS: Record<string, string> = {
+  ACLED: "bg-phantom-red/20 text-phantom-red",
+  DTM: "bg-phantom-blue/20 text-phantom-blue",
+  DHIS2: "bg-phantom-teal/20 text-phantom-teal",
+  "AFRO-SENTINEL": "bg-phantom-amber/20 text-phantom-amber",
+};
 
 interface CorridorOverlayProps {
   analysis: CorridorAnalysisResult;
@@ -138,13 +146,22 @@ const CorridorOverlay = ({ analysis }: CorridorOverlayProps) => {
             <div className="space-y-1.5">
               {analysis.evidence.map((ev, i) => (
                 <div key={i} className="text-[10px] font-mono">
-                  <div className="flex items-center justify-between">
-                    <span className="text-phantom-blue">{ev.source}</span>
-                    <span className="text-muted-foreground">{ev.type}</span>
+                  <div className="flex items-center justify-between gap-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className={`px-1 py-0.5 rounded text-[8px] font-semibold uppercase ${SOURCE_COLORS[ev.source] ?? "bg-secondary text-muted-foreground"}`}>
+                        {ev.source}
+                      </span>
+                      <span className="text-muted-foreground">{ev.type}</span>
+                    </div>
+                    <span className="text-muted-foreground/60 tabular-nums">
+                      t:{ev.truthScore}
+                    </span>
                   </div>
-                  <span className="text-muted-foreground/60">
-                    t:{ev.truthScore} · {ev.locationConfidence}
-                  </span>
+                  {ev.locationConfidence && (
+                    <span className="text-muted-foreground/40 text-[9px]">
+                      {ev.locationConfidence}
+                    </span>
+                  )}
                 </div>
               ))}
             </div>

@@ -17,6 +17,7 @@ export function useCesiumMap(containerRef: React.RefObject<HTMLDivElement | null
   const [radarActive, setRadarActive] = useState(false);
   const [monitoredId, setMonitoredId] = useState<string | null>(null);
   const [officialPOEsVisible, setOfficialPOEsVisible] = useState(true);
+  const poesLoadedRef = useRef(false);
 
   // Shared entity helper
   const addEntity = useCallback((id: string, options: Cesium.Entity.ConstructorOptions) => {
@@ -115,6 +116,7 @@ export function useCesiumMap(containerRef: React.RefObject<HTMLDivElement | null
     for (const id of entityIdsRef.current) viewer.entities.removeById(id);
     entityIdsRef.current = [];
     setRadarActive(false);
+    poesLoadedRef.current = false;
   }, []);
 
   const flyTo = useCallback((target: CesiumCameraTarget) => {
@@ -133,8 +135,10 @@ export function useCesiumMap(containerRef: React.RefObject<HTMLDivElement | null
   }, []);
 
   const loadOfficialPOEs = useCallback(async () => {
+    if (poesLoadedRef.current) return;
     const ctx = getDrawContext();
     if (!ctx) return;
+    poesLoadedRef.current = true;
     await drawOfficialPOEs(ctx);
   }, [getDrawContext]);
 

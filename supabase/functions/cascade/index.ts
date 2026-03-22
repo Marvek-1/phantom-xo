@@ -92,8 +92,10 @@ serve(async (req) => {
     let cumulativeScore = 0;
     const frames = sortedDays.map((day, idx) => {
       const eventsInFrame = frameMap.get(day)!;
+      // Evidence-weighted scoring — average of actual evidence scores, not cosmetic
       const frameScore = eventsInFrame.reduce((s: number, e: any) => s + (e.score || 0), 0) / eventsInFrame.length;
-      const delta = frameScore * 0.1;
+      const recencyWeight = 1 - (day / (sortedDays[sortedDays.length - 1] || 1)) * 0.3;
+      const delta = frameScore * 0.1 * recencyWeight;
       cumulativeScore = Math.min(1, cumulativeScore + delta);
 
       // Find entropy for this frame's nodes

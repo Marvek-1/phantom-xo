@@ -27,16 +27,25 @@ export function drawCorridor(ctx: CesiumDrawContext, corridor: CorridorTrack) {
     },
   });
 
-  // Layer 2: Animated dashed flow
+  // Layer 2: Animated dashed flow using CallbackProperty for dash offset
+  let dashOffset = 0;
+  const dashColor = Cesium.Color.fromCssColorString(T.green).withAlpha(0.7);
+
   ctx.addEntity(`${corridor.id}-dash`, {
     polyline: {
       positions,
       clampToGround: true,
       width: 5,
       material: new Cesium.PolylineDashMaterialProperty({
-        color: Cesium.Color.fromCssColorString(T.green).withAlpha(0.7),
+        color: dashColor,
         dashLength: 20,
-        dashPattern: 255,
+        dashPattern: new Cesium.CallbackProperty(() => {
+          // Rotate through 16-bit dash patterns to simulate flow
+          dashOffset = (dashOffset + 1) % 16;
+          // Shift the bit pattern to create movement
+          const base = 0xFF00;
+          return ((base << dashOffset) | (base >>> (16 - dashOffset))) & 0xFFFF;
+        }, false) as any,
       }),
     },
   });

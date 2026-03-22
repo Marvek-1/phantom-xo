@@ -1,5 +1,6 @@
-import { useRef } from "react";
+import { useRef, useState, useEffect, useCallback } from "react";
 import { Activity, Globe } from "lucide-react";
+import * as Cesium from "cesium";
 import { useCesiumMap } from "@/hooks/useCesiumMap";
 import { MapLegend } from "./MapLegend";
 
@@ -10,11 +11,42 @@ interface MapAreaProps {
 const MapArea = ({ onMapReady }: MapAreaProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const cesium = useCesiumMap(containerRef);
+  const [coords, setCoords] = useState({ lat: -1.5, lng: 34.0, alt: 3000 });
 
   // Notify parent when map is ready
   if (cesium.mapReady && onMapReady) {
     onMapReady(cesium);
   }
+
+  // Live coordinate readout from camera
+  useEffect(() => {
+    const viewer = cesium.viewer.current;
+    if (!viewer || viewer.isDestroyed()) return;
+
+    const updateCoords = () => {
+      if (viewer.isDestroyed()) return;
+      const carto = viewer.camera.positionCartographic;
+      setCoords({
+        lat: Cesium.Math.toDegrees(carto.latitude),
+        lng: Cesium.Math.toDegrees(carto.longitude),
+        alt: carto.height,
+      });
+    };
+
+    const removeListener = viewer.camera.changed.addEventListener(updateCoords);
+    // Set threshold so it fires on small movements
+    viewer.camera.percentageChanged = 0.01;
+    updateCoords(); // initial
+
+    return () => {
+      if (!viewer.isDestroyed()) removeListener();
+    };
+  }, [cesium.mapReady, cesium.viewer]);
+
+  const formatAlt = (alt: number) => {
+    if (alt >= 1000) return `${(alt / 1000).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ",")} km`;
+    return `${alt.toFixed(0)} m`;
+  };
 
   return (
     <div className="absolute inset-0">
@@ -61,11 +93,11 @@ const MapArea = ({ onMapReady }: MapAreaProps) => {
         />
       )}
 
-      {/* Coordinate readout */}
-      <div className="absolute bottom-4 left-4 z-10 flex items-center gap-3 text-[10px] font-mono text-muted-foreground/60">
-        <span>LAT -1.5000</span>
-        <span>LNG 34.0000</span>
-        <span>ALT 3,000 km</span>
+      {/* Live coordinate readout */}
+      <div className="absolute bottom-4 left-4 z-10 flex items-center gap-3 text-[10px] font-mono text-muted-foreground/60 tabular-nums">
+        <span>LAT {coords.lat.toFixed(4)}</span>
+        <span>LNG {coords.lng.toFixed(4)}</span>
+        <span>ALT {formatAlt(coords.alt)}</span>
       </div>
     </div>
   );
