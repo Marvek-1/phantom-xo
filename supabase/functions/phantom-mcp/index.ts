@@ -285,6 +285,25 @@ async function handleTool(name: string, args: Record<string, unknown>) {
       };
     }
 
+    case "ingest_signals": {
+      const { providers, daysBack } = args as any;
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      try {
+        const resp = await fetch(`${supabaseUrl}/functions/v1/ingest-signals`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}` },
+          body: JSON.stringify({ providers: providers ?? ["acled", "dtm", "dhis2"], daysBack: daysBack ?? 30 }),
+        });
+        const result = await resp.json();
+        if (!resp.ok) throw new Error(result.error || `HTTP ${resp.status}`);
+        return {
+          text: `◉ Ingestion complete\n  Run: ${result.runId}\n  Signals: ${result.totalSignals}\n  Passed truth filter: ${result.totalPassed}\n\n${Object.entries(result.providers || {}).map(([k, v]: any) => `  ${k}: ${v.signalCount} signals, ${v.rawCount} raw${v.errors?.length ? ` (${v.errors.length} errors)` : ""}`).join("\n")}`,
+        };
+      } catch (err) {
+        return { text: `◉ Ingestion failed: ${(err as Error).message}`, isError: true };
+      }
+    }
+
     case "test_connections": {
       const checks: Array<{ service: string; status: string; message: string; latencyMs?: number }> = [];
 
