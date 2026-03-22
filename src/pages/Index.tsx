@@ -5,6 +5,7 @@ import { ChatPanel } from "@/components/dashboard/ChatPanel";
 import { CorridorOverlay } from "@/components/dashboard/CorridorOverlay";
 import { RadarIndicator } from "@/components/dashboard/RadarIndicator";
 import { SignalBadge } from "@/components/dashboard/SignalBadge";
+import { CorridorDetailSidebar } from "@/components/dashboard/CorridorDetailSidebar";
 import type { CorridorAnalysisResult, SignalSummary, MapParams } from "@/types/phantom";
 import type { useCesiumMap } from "@/hooks/useCesiumMap";
 
@@ -32,7 +33,6 @@ const Index = () => {
       }
       if (params.corridorAnalysis) {
         setCorridorAnalysis(params.corridorAnalysis);
-        // Load gap zones if corridor analysis has an id matching a corridor_definition
         if (mapHandlers) {
           mapHandlers.loadGapZones(params.corridorAnalysis.id);
         }
@@ -42,6 +42,10 @@ const Index = () => {
     [mapHandlers]
   );
 
+  const selectedCorridor = mapHandlers?.selectedCorridorId
+    ? mapHandlers.corridorsMeta.find((c) => c.id === mapHandlers.selectedCorridorId) ?? null
+    : null;
+
   return (
     <div className="flex h-screen w-full overflow-hidden bg-background">
       {/* Map + overlays */}
@@ -50,6 +54,14 @@ const Index = () => {
 
         <div className="relative flex-1">
           <MapArea onMapReady={handleMapReady} />
+
+          {/* Corridor detail sidebar */}
+          {selectedCorridor && mapHandlers && (
+            <CorridorDetailSidebar
+              corridor={selectedCorridor}
+              onClose={() => mapHandlers.setSelectedCorridorId(null)}
+            />
+          )}
 
           {radarActive && <RadarIndicator monitoredId={monitoredId} />}
           {corridorAnalysis && <CorridorOverlay analysis={corridorAnalysis} />}

@@ -171,6 +171,7 @@ const MapLegend = ({
               <div className="pt-1.5 mt-1.5 border-t border-border">
                 <p className="text-[9px] font-mono text-muted-foreground tabular-nums">
                   {corridorsMeta.length} corridors · 91 nodes
+                  {crossingPointCount > 0 && ` · ${crossingPointCount} FMPs`}
                 </p>
               </div>
             )}

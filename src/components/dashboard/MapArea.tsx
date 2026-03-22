@@ -20,6 +20,30 @@ const MapArea = ({ onMapReady }: MapAreaProps) => {
     }
   }, [cesium.mapReady]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Click handler for corridor entities
+  useEffect(() => {
+    const viewer = cesium.viewer.current;
+    if (!viewer || viewer.isDestroyed()) return;
+
+    const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+    handler.setInputAction((click: { position: Cesium.Cartesian2 }) => {
+      const picked = viewer.scene.pick(click.position);
+      if (!Cesium.defined(picked) || !picked.id) return;
+
+      const entityId = typeof picked.id === "string" ? picked.id : picked.id.id;
+      if (typeof entityId !== "string") return;
+
+      // Match corridor spine entities: corr-{ID}-spine
+      const spineMatch = entityId.match(/^corr-(.+)-(?:spine|dash|glow)$/);
+      if (spineMatch) {
+        cesium.setSelectedCorridorId(spineMatch[1]);
+        return;
+      }
+    }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+
+    return () => handler.destroy();
+  }, [cesium.mapReady, cesium.viewer, cesium.setSelectedCorridorId]);
+
   // Live coordinate readout from camera
   useEffect(() => {
     const viewer = cesium.viewer.current;
@@ -98,6 +122,7 @@ const MapArea = ({ onMapReady }: MapAreaProps) => {
           cascadeActive={cesium.cascadeState?.active ?? false}
           onStartCascade={cesium.startCascade}
           onStopCascade={cesium.stopCascade}
+          crossingPointCount={cesium.crossingPoints.length}
         />
       )}
 
