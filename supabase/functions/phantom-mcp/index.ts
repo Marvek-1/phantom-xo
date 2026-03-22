@@ -101,6 +101,21 @@ const TOOLS = [
     description: "Run diagnostic check on all service connections.",
     inputSchema: { type: "object", properties: {} },
   },
+  {
+    name: "ingest_signals",
+    description: "Trigger live signal ingestion from external providers (ACLED, IOM-DTM, DHIS2).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        providers: {
+          type: "array",
+          items: { type: "string", enum: ["acled", "dtm", "dhis2"] },
+          description: "Which providers to ingest from (default: all)",
+        },
+        daysBack: { type: "number", description: "How many days back to fetch (default 30)" },
+      },
+    },
+  },
 ];
 
 // ─── Tool handlers ─────────────────────────────────────────
@@ -268,6 +283,25 @@ async function handleTool(name: string, args: Record<string, unknown>) {
         },
         text: `Fetched ${signals?.length ?? 0} signals near (${lat}, ${lng}) radius ${radiusKm}km.\n${JSON.stringify(signals?.slice(0, 5), null, 2)}`,
       };
+    }
+
+    case "ingest_signals": {
+      const { providers, daysBack } = args as any;
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      try {
+        const resp = await fetch(`${supabaseUrl}/functions/v1/ingest-signals`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}` },
+          body: JSON.stringify({ providers: providers ?? ["acled", "dtm", "dhis2"], daysBack: daysBack ?? 30 }),
+        });
+        const result = await resp.json();
+        if (!resp.ok) throw new Error(result.error || `HTTP ${resp.status}`);
+        return {
+          text: `◉ Ingestion complete\n  Run: ${result.runId}\n  Signals: ${result.totalSignals}\n  Passed truth filter: ${result.totalPassed}\n\n${Object.entries(result.providers || {}).map(([k, v]: any) => `  ${k}: ${v.signalCount} signals, ${v.rawCount} raw${v.errors?.length ? ` (${v.errors.length} errors)` : ""}`).join("\n")}`,
+        };
+      } catch (err) {
+        return { text: `◉ Ingestion failed: ${(err as Error).message}`, isError: true };
+      }
     }
 
     case "test_connections": {

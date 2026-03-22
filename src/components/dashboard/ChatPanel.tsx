@@ -137,6 +137,18 @@ const ChatPanel = ({ collapsed, onToggle, onMapQuery }: ChatPanelProps) => {
       };
     }
 
+    // ingest signals
+    if (lower.includes("ingest")) {
+      const providers: string[] = [];
+      if (lower.includes("acled")) providers.push("acled");
+      if (lower.includes("dtm")) providers.push("dtm");
+      if (lower.includes("dhis2") || lower.includes("dhis")) providers.push("dhis2");
+      return {
+        tool: "ingest_signals",
+        args: providers.length > 0 ? { providers } : {},
+      };
+    }
+
     return null;
   }
 
