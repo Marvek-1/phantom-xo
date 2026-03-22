@@ -80,8 +80,8 @@ export function useCesiumMap(containerRef: React.RefObject<HTMLDivElement | null
 
       const viewer = new Cesium.Viewer(containerRef.current, {
         animation: false, baseLayerPicker: false, fullscreenButton: false,
-        geocoder: false, homeButton: false, infoBox: false,
-        sceneModePicker: false, selectionIndicator: false,
+        geocoder: false, homeButton: false, infoBox: true,
+        sceneModePicker: false, selectionIndicator: true,
         timeline: false, navigationHelpButton: false,
         scene3DOnly: true, creditContainer: creditDiv,
         requestRenderMode: false, msaaSamples: 4,

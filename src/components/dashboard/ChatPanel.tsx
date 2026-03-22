@@ -211,7 +211,7 @@ const ChatPanel = ({ collapsed, onToggle, onMapQuery }: ChatPanelProps) => {
                   ))}
                 </div>
                 <span className="text-[9px] font-mono text-muted-foreground/50 mt-1 block px-1">
-                  {msg.role === "user" ? "you" : "ollam"} · just now
+                  {msg.role === "user" ? "you" : "phantom"} · just now
                 </span>
               </div>
             ))}
