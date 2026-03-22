@@ -101,6 +101,21 @@ const TOOLS = [
     description: "Run diagnostic check on all service connections.",
     inputSchema: { type: "object", properties: {} },
   },
+  {
+    name: "ingest_signals",
+    description: "Trigger live signal ingestion from external providers (ACLED, IOM-DTM, DHIS2).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        providers: {
+          type: "array",
+          items: { type: "string", enum: ["acled", "dtm", "dhis2"] },
+          description: "Which providers to ingest from (default: all)",
+        },
+        daysBack: { type: "number", description: "How many days back to fetch (default 30)" },
+      },
+    },
+  },
 ];
 
 // ─── Tool handlers ─────────────────────────────────────────
