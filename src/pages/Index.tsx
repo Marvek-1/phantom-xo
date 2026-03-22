@@ -30,7 +30,13 @@ const Index = () => {
           setMonitoredId(params.radar?.corridorId ?? params.corridor?.id ?? null);
         }
       }
-      if (params.corridorAnalysis) setCorridorAnalysis(params.corridorAnalysis);
+      if (params.corridorAnalysis) {
+        setCorridorAnalysis(params.corridorAnalysis);
+        // Load gap zones if corridor analysis has an id matching a corridor_definition
+        if (mapHandlers) {
+          mapHandlers.loadGapZones(params.corridorAnalysis.id);
+        }
+      }
       if (params.signals) setSignalData(params.signals);
     },
     [mapHandlers]

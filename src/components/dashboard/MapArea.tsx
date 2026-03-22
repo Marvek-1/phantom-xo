@@ -1,6 +1,7 @@
 import { useRef } from "react";
 import { Activity, Globe } from "lucide-react";
 import { useCesiumMap } from "@/hooks/useCesiumMap";
+import { MapLegend } from "./MapLegend";
 
 interface MapAreaProps {
   onMapReady?: (handlers: ReturnType<typeof useCesiumMap>) => void;
@@ -50,6 +51,14 @@ const MapArea = ({ onMapReady }: MapAreaProps) => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Legend overlay */}
+      {cesium.mapReady && (
+        <MapLegend
+          officialPOEsVisible={cesium.officialPOEsVisible}
+          onTogglePOEs={cesium.setOfficialPOEsVisible}
+        />
       )}
 
       {/* Coordinate readout */}
