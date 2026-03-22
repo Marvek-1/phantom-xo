@@ -1,16 +1,48 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import { useState } from "react";
+import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
+import { MapArea } from "@/components/dashboard/MapArea";
+import { ChatPanel } from "@/components/dashboard/ChatPanel";
+import { CorridorOverlay } from "@/components/dashboard/CorridorOverlay";
+import { RadarIndicator } from "@/components/dashboard/RadarIndicator";
+import { SignalBadge } from "@/components/dashboard/SignalBadge";
 
-// IMPORTANT: Fully REPLACE this with your own code
-const PlaceholderIndex = () => {
-  // PLACEHOLDER: Replace this entire return statement with the user's app.
-  // The inline background color is intentionally not part of the design system.
+const Index = () => {
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [radarActive] = useState(false);
+  const [monitoredId] = useState<string | null>(null);
+  const [corridorAnalysis] = useState<any>(null);
+  const [signalData] = useState<any>(null);
+
   return (
-    <div className="flex min-h-screen items-center justify-center" style={{ backgroundColor: '#fcfbf8' }}>
-      <img data-lovable-blank-page-placeholder="REMOVE_THIS" src="/placeholder.svg" alt="Your app will live here!" />
+    <div className="flex h-screen w-full overflow-hidden bg-background">
+      {/* Map + overlays area */}
+      <div className="relative flex-1 flex flex-col min-w-0">
+        <DashboardHeader />
+
+        <div className="relative flex-1">
+          <MapArea />
+
+          {radarActive && (
+            <RadarIndicator monitoredId={monitoredId} />
+          )}
+
+          {corridorAnalysis && (
+            <CorridorOverlay analysis={corridorAnalysis} />
+          )}
+
+          {signalData && (
+            <SignalBadge data={signalData} />
+          )}
+        </div>
+      </div>
+
+      {/* Chat sidebar */}
+      <ChatPanel
+        collapsed={sidebarCollapsed}
+        onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+      />
     </div>
   );
 };
-
-const Index = PlaceholderIndex;
 
 export default Index;
