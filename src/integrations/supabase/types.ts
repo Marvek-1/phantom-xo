@@ -614,6 +614,39 @@ export type Database = {
           },
         ]
       }
+      corridor_temporal_events: {
+        Row: {
+          corridor_id: string | null
+          crossing_point_id: string | null
+          description: string
+          event_date: string
+          event_type: string
+          flow_impact: string | null
+          id: string
+          source: string
+        }
+        Insert: {
+          corridor_id?: string | null
+          crossing_point_id?: string | null
+          description: string
+          event_date: string
+          event_type: string
+          flow_impact?: string | null
+          id: string
+          source: string
+        }
+        Update: {
+          corridor_id?: string | null
+          crossing_point_id?: string | null
+          description?: string
+          event_date?: string
+          event_type?: string
+          flow_impact?: string | null
+          id?: string
+          source?: string
+        }
+        Relationships: []
+      }
       data_lanes: {
         Row: {
           badge_color: string
@@ -2400,6 +2433,57 @@ export type Database = {
           },
         ]
       }
+      real_crossing_points: {
+        Row: {
+          alt_names: string | null
+          closure_periods: string | null
+          country_a: string
+          country_b: string
+          crossing_type: string
+          id: string
+          iom_fmp_active: boolean | null
+          lat: number
+          lng: number
+          monthly_avg_flow: number | null
+          name: string
+          peak_daily_flow: number | null
+          source: string
+          status: string | null
+        }
+        Insert: {
+          alt_names?: string | null
+          closure_periods?: string | null
+          country_a: string
+          country_b: string
+          crossing_type: string
+          id: string
+          iom_fmp_active?: boolean | null
+          lat: number
+          lng: number
+          monthly_avg_flow?: number | null
+          name: string
+          peak_daily_flow?: number | null
+          source: string
+          status?: string | null
+        }
+        Update: {
+          alt_names?: string | null
+          closure_periods?: string | null
+          country_a?: string
+          country_b?: string
+          crossing_type?: string
+          id?: string
+          iom_fmp_active?: boolean | null
+          lat?: number
+          lng?: number
+          monthly_avg_flow?: number | null
+          name?: string
+          peak_daily_flow?: number | null
+          source?: string
+          status?: string | null
+        }
+        Relationships: []
+      }
       route_activity: {
         Row: {
           activity_status: string
@@ -2521,6 +2605,45 @@ export type Database = {
           key?: string
           updated_at?: string
           value?: string
+        }
+        Relationships: []
+      }
+      temporal_flows: {
+        Row: {
+          corridor_id: string
+          flow_count: number
+          flow_direction: string
+          id: string
+          notes: string | null
+          period_end: string
+          period_start: string
+          provenance: string | null
+          source_report: string
+          source_url: string | null
+        }
+        Insert: {
+          corridor_id: string
+          flow_count: number
+          flow_direction: string
+          id: string
+          notes?: string | null
+          period_end: string
+          period_start: string
+          provenance?: string | null
+          source_report: string
+          source_url?: string | null
+        }
+        Update: {
+          corridor_id?: string
+          flow_count?: number
+          flow_direction?: string
+          id?: string
+          notes?: string | null
+          period_end?: string
+          period_start?: string
+          provenance?: string | null
+          source_report?: string
+          source_url?: string | null
         }
         Relationships: []
       }
