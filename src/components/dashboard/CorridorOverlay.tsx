@@ -98,7 +98,7 @@ const CorridorOverlay = ({ analysis }: CorridorOverlayProps) => {
           </div>
         )}
 
-        {/* Nodes */}
+        {/* Nodes — type-differentiated */}
         {analysis.nodes && analysis.nodes.length > 0 && (
           <div className="px-4 py-3 border-t border-border">
             <span className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider block mb-2">
@@ -107,9 +107,20 @@ const CorridorOverlay = ({ analysis }: CorridorOverlayProps) => {
             <div className="space-y-1">
               {analysis.nodes.map((node) => (
                 <div key={node.id} className="flex items-center justify-between text-[10px] font-mono">
-                  <span className="text-foreground truncate max-w-[120px]">{node.name}</span>
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span className={`inline-block w-2 h-2 flex-shrink-0 ${
+                      node.type === "FORMAL_POE" ? "rotate-45 bg-[hsl(var(--phantom-blue))]" :
+                      node.type === "PHANTOM_POE" ? "rounded-full bg-[hsl(var(--phantom-amber))] animate-pulse" :
+                      "rounded-full bg-[hsl(var(--phantom-teal))]"
+                    }`} />
+                    <span className="text-foreground truncate max-w-[110px]">{node.name}</span>
+                  </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-muted-foreground">{node.type}</span>
+                    <span className={`text-[9px] ${
+                      node.type === "FORMAL_POE" ? "text-phantom-blue" :
+                      node.type === "PHANTOM_POE" ? "text-phantom-amber" :
+                      "text-muted-foreground"
+                    }`}>{node.type.replace(/_/g, " ")}</span>
                     {node.risk && <span className={riskColor(node.risk)}>{node.risk}</span>}
                   </div>
                 </div>
