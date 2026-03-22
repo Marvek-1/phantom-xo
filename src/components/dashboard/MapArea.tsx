@@ -14,9 +14,11 @@ const MapArea = ({ onMapReady }: MapAreaProps) => {
   const [coords, setCoords] = useState({ lat: -1.5, lng: 34.0, alt: 3000 });
 
   // Notify parent when map is ready
-  if (cesium.mapReady && onMapReady) {
-    onMapReady(cesium);
-  }
+  useEffect(() => {
+    if (cesium.mapReady && onMapReady) {
+      onMapReady(cesium);
+    }
+  }, [cesium.mapReady]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Live coordinate readout from camera
   useEffect(() => {
