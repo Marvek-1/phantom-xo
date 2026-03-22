@@ -95,6 +95,7 @@ interface MapLegendProps {
   cascadeActive?: boolean;
   onStartCascade?: (corridorId: string) => void;
   onStopCascade?: () => void;
+  crossingPointCount?: number;
 }
 
 const MapLegend = ({
