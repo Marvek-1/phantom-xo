@@ -3,28 +3,6 @@ import type { CorridorAnalysisResult } from "@/types/phantom";
 interface CorridorOverlayProps {
   analysis: CorridorAnalysisResult;
 }
-    latentState?: string;
-    region?: string;
-    riskClass?: string;
-    score?: number;
-    velocity?: string;
-    totalKm?: number;
-    mode?: string;
-    souls?: Record<string, number>;
-    forecast?: {
-      nextActivationLikelihood?: number;
-      driftDirectionDeg?: number;
-    };
-    nodes?: Array<{ id: string; name: string; type: string; risk?: string }>;
-    evidence?: Array<{
-      source: string;
-      type: string;
-      truthScore?: number;
-      locationConfidence?: string;
-    }>;
-    traceLines?: string[];
-  };
-}
 
 const riskColor = (risk: string) => {
   switch (risk?.toLowerCase()) {
@@ -97,6 +75,29 @@ const CorridorOverlay = ({ analysis }: CorridorOverlayProps) => {
           </div>
         )}
 
+        {/* Forecast */}
+        {analysis.forecast && (
+          <div className="px-4 py-3 border-t border-border">
+            <span className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider block mb-2">
+              Forecast
+            </span>
+            <div className="flex gap-4">
+              <div>
+                <span className="text-[9px] font-mono text-muted-foreground block">NEXT ACTIVATION</span>
+                <span className="text-xs font-mono font-semibold text-phantom-amber">
+                  {((analysis.forecast.nextActivationLikelihood ?? 0) * 100).toFixed(0)}%
+                </span>
+              </div>
+              <div>
+                <span className="text-[9px] font-mono text-muted-foreground block">DRIFT</span>
+                <span className="text-xs font-mono font-semibold text-foreground">
+                  {analysis.forecast.driftDirectionDeg}°
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Nodes */}
         {analysis.nodes && analysis.nodes.length > 0 && (
           <div className="px-4 py-3 border-t border-border">
@@ -114,6 +115,40 @@ const CorridorOverlay = ({ analysis }: CorridorOverlayProps) => {
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* Evidence */}
+        {analysis.evidence && analysis.evidence.length > 0 && (
+          <div className="px-4 py-3 border-t border-border">
+            <span className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider block mb-2">
+              Evidence Provenance
+            </span>
+            <div className="space-y-1.5">
+              {analysis.evidence.map((ev, i) => (
+                <div key={i} className="text-[10px] font-mono">
+                  <div className="flex items-center justify-between">
+                    <span className="text-phantom-blue">{ev.source}</span>
+                    <span className="text-muted-foreground">{ev.type}</span>
+                  </div>
+                  <span className="text-muted-foreground/60">
+                    t:{ev.truthScore} · {ev.locationConfidence}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Trace lines */}
+        {analysis.traceLines && analysis.traceLines.length > 0 && (
+          <div className="px-4 py-3 border-t border-border">
+            <span className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider block mb-2">
+              Inference Trace
+            </span>
+            <pre className="text-[9px] font-mono text-muted-foreground/80 whitespace-pre-wrap leading-relaxed">
+              {analysis.traceLines.join("\n")}
+            </pre>
           </div>
         )}
       </div>
