@@ -128,7 +128,7 @@ const ChatPanel = ({ collapsed, onToggle, onMapQuery }: ChatPanelProps) => {
   };
 
   const stateLabel = {
-    [CS.GENERATING]: "Ollam is responding…",
+    [CS.GENERATING]: "Phantom AI responding…",
     [CS.THINKING]: "Deep analysis…",
     [CS.EXECUTING]: "Executing tool…",
     [CS.IDLE]: "",
@@ -155,7 +155,7 @@ const ChatPanel = ({ collapsed, onToggle, onMapQuery }: ChatPanelProps) => {
           <div className="flex items-center justify-between px-4 py-3 border-b border-border">
             <div className="flex items-center gap-2">
               <span className="text-phantom-green font-mono text-xs font-semibold tracking-wider">
-                Ollam · Mostar
+                Phantom AI · Ollam
               </span>
               <span className="w-1.5 h-1.5 rounded-full bg-phantom-green/60 animate-pulse" />
             </div>
@@ -174,7 +174,7 @@ const ChatPanel = ({ collapsed, onToggle, onMapQuery }: ChatPanelProps) => {
                   ◉⟁⬡
                 </span>
                 <p className="text-xs text-muted-foreground text-center max-w-[240px] leading-relaxed">
-                  Ollam · Mostar is online. Ask about corridors, signals, threat analysis, or give direct commands.
+                  Phantom AI is online. Ask about corridors, signals, threat analysis, or give direct commands.
                 </p>
                 <div className="flex flex-wrap gap-1.5 justify-center max-w-[280px] mt-2">
                   {EXAMPLE_PROMPTS.slice(0, 3).map((p, i) => (
@@ -211,7 +211,7 @@ const ChatPanel = ({ collapsed, onToggle, onMapQuery }: ChatPanelProps) => {
                   ))}
                 </div>
                 <span className="text-[9px] font-mono text-muted-foreground/50 mt-1 block px-1">
-                  {msg.role === "user" ? "you" : "ollam"} · just now
+                  {msg.role === "user" ? "you" : "phantom"} · just now
                 </span>
               </div>
             ))}

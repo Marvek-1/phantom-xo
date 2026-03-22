@@ -115,3 +115,29 @@
     animation: radar-sweep 3s linear infinite;
   }
 }
+
+/* Cesium InfoBox dark theme */
+.cesium-infoBox {
+  background: hsl(228 40% 7% / 0.95) !important;
+  border: 1px solid hsl(230 25% 15%) !important;
+  border-radius: 8px !important;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5) !important;
+}
+.cesium-infoBox-title {
+  background: transparent !important;
+  color: hsl(153 100% 45%) !important;
+  font-family: 'IBM Plex Mono', monospace !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  padding: 10px 12px 6px !important;
+}
+.cesium-infoBox-iframe {
+  background: transparent !important;
+}
+.cesium-infoBox-close {
+  filter: invert(0.7) !important;
+}
+.cesium-selection-wrapper {
+  border-color: hsl(153 100% 45% / 0.4) !important;
+}
