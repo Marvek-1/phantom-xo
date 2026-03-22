@@ -1,62 +1,54 @@
 
 
-# Implement All REST API Endpoints as Edge Functions
+# Add Real IOM DTM Temporal Flow Data
 
-The Fabricate/Tonic API defines 16 endpoints. Currently the project has 6 edge functions (`cascade`, `phantom-mcp`, `ingest-signals`, `ollam-chat`, `get-maptiler-key`, `flush-database`). Many Fabricate routes are partially covered by `phantom-mcp` tools or `cascade`, but there's no direct REST API surface matching the Fabricate spec.
+Create 3 new tables and populate them with verified IOM DTM published data: temporal flows, real crossing points, and corridor temporal events. Also insert new corridors (Kasai Ring legs, Bossaso sea route) and their nodes.
 
-## Mapping: Fabricate Routes → Implementation
+## Step 1: Database Migration — Create 3 new tables
 
-| Fabricate Route | Status | Implementation |
-|---|---|---|
-| `GET /api/corridors` | **New** | Edge function `api-corridors` — query `poe_corridors` with filters (risk, country, activated) |
-| `GET /api/corridors/:id` | **New** | Same function, path param — join terrain, divergence, evidence |
-| `GET /api/corridors/:id/cascade` | **Exists** | `cascade` edge function already does this |
-| `GET /api/corridors/:id/evidence-chain` | **New** | Edge function `api-evidence-chain` — query `corridor_evidence_chains` |
-| `GET /api/corridors/:id/friction-surface` | **New** | Edge function `api-friction` — query `friction_cells` for corridor |
-| `GET /api/detections` | **New** | Edge function `api-detections` — query `poe_detection_events` with since/severity/unread filters |
-| `PUT /api/detections/:id/ack` | **New** | Same function, PUT — update `acknowledged = true` |
-| `GET /api/diagnostics` | **Partial** | `phantom-mcp` has `test_connections` — create dedicated `api-diagnostics` querying `diagnostic_results` |
-| `GET /api/divergence` | **New** | Edge function `api-divergence` — query `poe_divergence` joined with `poe_corridors` |
-| `GET /api/entropy` | **New** | Edge function `api-entropy` — query `entropy_results` with spiked/risk filters |
-| `GET /api/lane` | **New** | Edge function `api-lane` — query `data_lanes` |
-| `PUT /api/lane/:laneId` | **New** | Same function, PUT — switch active lane |
-| `GET /api/phantom-nodes` | **New** | Edge function `api-phantom-nodes` — query `phantom_node_registry` with type/country filters |
-| `GET /api/poll` | **New** | Edge function `api-poll` — master polling: corridors + detections + signals since timestamp |
-| `GET /api/runs` | **New** | Edge function `api-runs` — query `ingestion_runs` |
-| `GET /api/runs/:runId` | **New** | Same function, path param |
-| `GET /api/signals` | **Partial** | `phantom-mcp` has `fetch_sentinel_signals` — create dedicated `api-signals` |
+**`temporal_flows`** — Monthly/quarterly flow counts from IOM FMPs
+- id (text PK), corridor_id, period_start, period_end, flow_count (integer), flow_direction, source_report, source_url, notes, provenance
 
-## Implementation approach
+**`real_crossing_points`** — Verified border crossing locations with IOM FMP data
+- id (text PK), name, alt_names, lat (real), lng (real), country_a, country_b, crossing_type, iom_fmp_active (boolean), monthly_avg_flow (integer), peak_daily_flow (integer), status, closure_periods, source
 
-Create **9 edge functions** that cover all 16 routes (grouping related routes):
+**`corridor_temporal_events`** — Key conflict/displacement/health events
+- id (text PK), corridor_id, crossing_point_id, event_date, event_type, description, flow_impact, source
 
-1. **`api-corridors`** — handles `/corridors`, `/corridors/:id`, routes to `cascade` for `/corridors/:id/cascade`
-2. **`api-evidence-chain`** — `/corridors/:id/evidence-chain`
-3. **`api-friction`** — `/corridors/:id/friction-surface`
-4. **`api-detections`** — GET detections + PUT ack
-5. **`api-diagnostics`** — latest diagnostic per service
-6. **`api-divergence`** — divergence data with corridor join
-7. **`api-entropy`** — entropy results with filters
-8. **`api-lane`** — GET/PUT lane switching
-9. **`api-poll`** — master polling endpoint combining corridors, detections, signals
+All tables get RLS: admin full CRUD, authenticated read.
 
-The existing `phantom-mcp` tools (`fetch_sentinel_signals`, `test_connections`) and `ingest-signals` already handle signals and runs — the new functions provide the REST surface the Fabricate spec expects.
+## Step 2: Insert crossing points (10 records)
+Metema, Nimule, Renk, Adré, Doolow, Dhobley, Bossaso, Kazumba, Moyale, Nadapal — all with real IOM coordinates and flow stats.
 
-Each function follows the existing pattern: Deno `serve()`, CORS headers, service role key, query params from URL.
+## Step 3: Insert temporal flows (~45 records)
+- Metema monthly FMP data (22 months: Apr 2023 → Jan 2025)
+- Sudan cross-border aggregate flows (6 records covering 3.3M movements)
+- Somalia FMP annual breakdowns (6 records, 283K total)
+- Nimule quarterly flows (4 records)
+- Kasai/Angola ring flows (5 records, 1.2M affected)
+- Adré/Chad flows (4 records)
 
-## Files created
+## Step 4: Insert temporal events (12 key events)
+Sudan conflict onset, Metema closure/reopening, El Geneina massacre, Kasai cholera, Bossaso smuggling surge, 3.3M milestone, etc.
 
-| File | Purpose |
+## Step 5: Insert new corridors + definitions + nodes
+- C-CD-005 Cazombo→Kazumba (Kasai Ring Leg 1)
+- C-CD-006 Luiza→Dilolo (Kasai Ring Leg 2)
+- C-SO-003 Bossaso→Aden (Sea Route)
+- 3 corridor_definitions entries
+- 10 corridor_nodes entries
+
+## Step 6: Create `api-temporal` edge function
+New edge function exposing:
+- `GET /api-temporal` — list all temporal flows with optional corridor_id filter
+- `GET /api-temporal?crossing_points=1` — list crossing points
+- `GET /api-temporal?events=1` — list temporal events
+- `GET /api-temporal?corridor_id=X` — flows for specific corridor
+
+## Files
+| File | Action |
 |---|---|
-| `supabase/functions/api-corridors/index.ts` | List/get corridors with terrain + divergence joins |
-| `supabase/functions/api-evidence-chain/index.ts` | Evidence chain for corridor |
-| `supabase/functions/api-friction/index.ts` | Friction cells for corridor |
-| `supabase/functions/api-detections/index.ts` | Detection events + acknowledge |
-| `supabase/functions/api-diagnostics/index.ts` | Latest diagnostics per service |
-| `supabase/functions/api-divergence/index.ts` | Divergence with corridor context |
-| `supabase/functions/api-entropy/index.ts` | Entropy results with filters |
-| `supabase/functions/api-lane/index.ts` | Lane get/switch |
-| `supabase/functions/api-poll/index.ts` | Master polling endpoint |
-
-All functions will be deployed and tested after creation.
+| Migration SQL | Create 3 tables with RLS |
+| Data inserts (via insert tool) | ~70 records across 3 new tables + corridors/definitions/nodes |
+| `supabase/functions/api-temporal/index.ts` | New edge function |
 
