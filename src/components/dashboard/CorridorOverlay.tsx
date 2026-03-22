@@ -1,6 +1,8 @@
+import type { CorridorAnalysisResult } from "@/types/phantom";
+
 interface CorridorOverlayProps {
-  analysis: {
-    id: string;
+  analysis: CorridorAnalysisResult;
+}
     latentState?: string;
     region?: string;
     riskClass?: string;
