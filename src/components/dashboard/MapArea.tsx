@@ -122,7 +122,6 @@ const MapArea = ({ onMapReady }: MapAreaProps) => {
           cascadeActive={cesium.cascadeState?.active ?? false}
           onStartCascade={cesium.startCascade}
           onStopCascade={cesium.stopCascade}
-          crossingPointCount={cesium.crossingPoints.length}
         />
       )}
 
