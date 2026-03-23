@@ -324,5 +324,7 @@ export function useCesiumMap(containerRef: React.RefObject<HTMLDivElement | null
     stopCascade,
     selectedCorridorId,
     setSelectedCorridorId,
+    layerVisibility,
+    toggleLayer,
   };
 }
