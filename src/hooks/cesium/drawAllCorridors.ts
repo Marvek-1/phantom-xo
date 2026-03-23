@@ -376,34 +376,72 @@ function drawPhantomCorridor(ctx: CesiumDrawContext, feature: any) {
   const cesiumColor = Cesium.Color.fromCssColorString(color);
   const modeInfo = MODE_INFO[mode] ?? MODE_INFO.mixed;
 
-  // Densify the sparse coordinates
   const rawCoords = feature.geometry.coordinates as [number, number][];
   const denseCoords = densifyLine(rawCoords, 40);
-  const coords: number[] = denseCoords.flatMap((c) => [c[0], c[1]]);
-  const positions = Cesium.Cartesian3.fromDegreesArray(coords);
-
+  const allCoords: number[] = denseCoords.flatMap((c) => [c[0], c[1]]);
+  const allPositions = Cesium.Cartesian3.fromDegreesArray(allCoords);
   const descriptionHtml = buildPhantomTooltip(props, modeInfo, color);
+  const totalSegs = denseCoords.length - 1;
 
-  // Glow ribbon
+  // Layer 1: Glow — single entity, wide, low alpha, uses risk color
   ctx.addEntity(`corr-${id}-glow`, {
     polyline: {
-      positions,
+      positions: allPositions,
       clampToGround: true,
-      width: 20,
-      material: cesiumColor.withAlpha(0.06),
+      width: 18,
+      material: new Cesium.PolylineGlowMaterialProperty({
+        glowPower: 0.25,
+        color: cesiumColor.withAlpha(0.15),
+      }),
     },
   });
 
-  // Animated dash
+  // Layer 2: Gradient spine — batched by color similarity
+  let batchStart = 0;
+  let batchColor = scoreToColor(0, risk);
+  const COLOR_THRESHOLD = 0.05;
+
+  for (let i = 1; i <= totalSegs; i++) {
+    const segColor = i < totalSegs ? scoreToColor(i / totalSegs, risk) : batchColor;
+    const diff = Math.abs(segColor.red - batchColor.red) +
+                 Math.abs(segColor.green - batchColor.green) +
+                 Math.abs(segColor.blue - batchColor.blue);
+
+    if (diff > COLOR_THRESHOLD || i === totalSegs) {
+      const end = i === totalSegs ? i + 1 : i + 1;
+      const slice = denseCoords.slice(batchStart, Math.min(end, denseCoords.length));
+      if (slice.length >= 2) {
+        const batchPositions = Cesium.Cartesian3.fromDegreesArray(
+          slice.flatMap((c) => [c[0], c[1]])
+        );
+        // Use midpoint color for this batch
+        const midT = (batchStart + (slice.length - 1) / 2) / totalSegs;
+        const midColor = scoreToColor(midT, risk);
+
+        ctx.addEntity(`corr-${id}-grad-${batchStart}`, {
+          polyline: {
+            positions: batchPositions,
+            clampToGround: true,
+            width: 4,
+            material: midColor.withAlpha(0.85),
+          },
+        });
+      }
+      batchStart = i;
+      batchColor = segColor;
+    }
+  }
+
+  // Layer 3: Animated dash — single entity showing flow direction
   let dashOffset = 0;
   ctx.addEntity(`corr-${id}-dash`, {
     polyline: {
-      positions,
+      positions: allPositions,
       clampToGround: true,
-      width: 4,
+      width: 2,
       material: new Cesium.PolylineDashMaterialProperty({
-        color: cesiumColor.withAlpha(0.6),
-        dashLength: 18,
+        color: Cesium.Color.WHITE.withAlpha(0.45),
+        dashLength: 16,
         dashPattern: new Cesium.CallbackProperty(() => {
           dashOffset = (dashOffset + 1) % 16;
           const base = 0xff00;
@@ -413,15 +451,15 @@ function drawPhantomCorridor(ctx: CesiumDrawContext, feature: any) {
     },
   });
 
-  // Solid spine — clickable, carries tooltip
+  // Clickable invisible spine for tooltip
   ctx.addEntity(`corr-${id}-spine`, {
     name: name,
     description: descriptionHtml,
     polyline: {
-      positions,
+      positions: allPositions,
       clampToGround: true,
-      width: 1.5,
-      material: cesiumColor,
+      width: 8,
+      material: Cesium.Color.TRANSPARENT,
     },
     properties: {
       corridorId: id,
