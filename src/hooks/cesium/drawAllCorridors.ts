@@ -63,10 +63,222 @@ const NODE_TYPE_CONFIG: Record<string, { pixelSize: number; showLabel: boolean; 
   waypoint: { pixelSize: 3, showLabel: false, distMax: 300_000, color: "#9CA3AF" },
 };
 
+/* ── Geodesic densification ── */
+
 /**
- * Unified renderer: loads corridors_paired.geojson and renders
- * PHANTOM corridors, FORMAL routes, NODEs, FORMAL_GATEs, IOM_FMPs, and PHANTOM_POEs.
+ * Interpolate points along the great-circle arc between two lon/lat pairs.
  */
+function interpolateGreatCircle(
+  lon1: number, lat1: number,
+  lon2: number, lat2: number,
+  numSegments: number
+): [number, number][] {
+  const toRad = Math.PI / 180;
+  const toDeg = 180 / Math.PI;
+  const φ1 = lat1 * toRad, λ1 = lon1 * toRad;
+  const φ2 = lat2 * toRad, λ2 = lon2 * toRad;
+
+  const d = 2 * Math.asin(Math.sqrt(
+    Math.sin((φ2 - φ1) / 2) ** 2 +
+    Math.cos(φ1) * Math.cos(φ2) * Math.sin((λ2 - λ1) / 2) ** 2
+  ));
+
+  if (d < 1e-10) return [[lon2, lat2]];
+
+  const points: [number, number][] = [];
+  for (let i = 1; i <= numSegments; i++) {
+    const f = i / numSegments;
+    const A = Math.sin((1 - f) * d) / Math.sin(d);
+    const B = Math.sin(f * d) / Math.sin(d);
+    const x = A * Math.cos(φ1) * Math.cos(λ1) + B * Math.cos(φ2) * Math.cos(λ2);
+    const y = A * Math.cos(φ1) * Math.sin(λ1) + B * Math.cos(φ2) * Math.sin(λ2);
+    const z = A * Math.sin(φ1) + B * Math.sin(φ2);
+    const φ = Math.atan2(z, Math.sqrt(x * x + y * y));
+    const λ = Math.atan2(y, x);
+    points.push([λ * toDeg, φ * toDeg]);
+  }
+  return points;
+}
+
+/**
+ * Densify a coordinate array to have at least `targetTotal` points
+ * using geodesic (great-circle) interpolation.
+ */
+function densifyLine(coords: [number, number][], targetTotal = 40): [number, number][] {
+  if (coords.length >= targetTotal) return coords;
+  const segmentCount = coords.length - 1;
+  if (segmentCount < 1) return coords;
+
+  const pointsPerSeg = Math.max(2, Math.ceil((targetTotal - coords.length) / segmentCount));
+  const result: [number, number][] = [coords[0]];
+
+  for (let i = 0; i < segmentCount; i++) {
+    const [lon1, lat1] = coords[i];
+    const [lon2, lat2] = coords[i + 1];
+    const interpolated = interpolateGreatCircle(lon1, lat1, lon2, lat2, pointsPerSeg + 1);
+    result.push(...interpolated);
+  }
+  return result;
+}
+
+/* ── Tooltip builders ── */
+
+function formatNum(n: number): string {
+  if (n >= 1000) return `${(n / 1000).toFixed(1).replace(/\.0$/, "")}k`;
+  return String(n);
+}
+
+function buildPhantomTooltip(props: any, modeInfo: any, color: string): string {
+  const id = props.id;
+  const risk = props.risk_class;
+  const km = props.distance_km;
+  const mode = props.inferred_mode || props.mode || "mixed";
+  const gapKm = props.gap_km ?? 0;
+  const coverage = props.formal_poe_coverage ?? "N/A";
+  const people = props.est_monthly_people;
+  const vehicles = props.est_vehicles_day;
+  const canoe = props.est_canoe_crossings_day;
+  const sea = props.est_sea_crossings_day;
+  const livestock = props.est_livestock_heads_day;
+  const marketDays = props.market_days;
+  const commodities = props.key_commodities;
+  const conflict = props.conflict_factor;
+  const healthRisk = props.health_risk;
+  const nearestHealth = props.nearest_health_km;
+  const mobileCoverage = props.mobile_coverage;
+
+  // Movement volume section
+  let movementLines = "";
+  if (people) movementLines += `<div>👥 <strong>${formatNum(people)}</strong> people/month (est.)</div>`;
+  if (vehicles > 0) movementLines += `<div>🚛 ${vehicles} vehicles/day</div>`;
+  if (canoe > 0) movementLines += `<div>🛶 ${canoe} canoe crossings/day</div>`;
+  if (sea > 0) movementLines += `<div>⛵ ${sea} sea crossings/day</div>`;
+  if (livestock > 0) movementLines += `<div>🐄 ${livestock} livestock heads/day</div>`;
+
+  // Market section
+  let marketSection = "";
+  if (marketDays || commodities) {
+    marketSection = `
+      <div style="border-top:1px solid #27272a;padding-top:6px;margin-bottom:6px">
+        <div style="color:#a1a1aa;font-size:9px;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:2px">Market Activity</div>
+        ${marketDays ? `<div>📅 Market days: <strong>${marketDays}</strong></div>` : ""}
+        ${commodities ? `<div>📦 ${commodities}</div>` : ""}
+      </div>`;
+  }
+
+  // Health & risk
+  let riskSection = "";
+  if (healthRisk || conflict) {
+    riskSection = `
+      <div style="border-top:1px solid #27272a;padding-top:6px;margin-bottom:6px">
+        <div style="color:#a1a1aa;font-size:9px;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:2px">Risk Factors</div>
+        ${conflict ? `<div style="color:#F97316">⚔ ${conflict}</div>` : ""}
+        ${healthRisk ? `<div style="color:#EF4444">🦠 ${healthRisk}</div>` : ""}
+      </div>`;
+  }
+
+  // Infrastructure
+  let infraSection = "";
+  if (nearestHealth || mobileCoverage) {
+    infraSection = `
+      <div style="border-top:1px solid #27272a;padding-top:6px;margin-bottom:6px">
+        <div style="color:#a1a1aa;font-size:9px;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:2px">Infrastructure</div>
+        ${nearestHealth ? `<div>🏥 Nearest health post: <strong>${nearestHealth} km</strong></div>` : ""}
+        ${mobileCoverage ? `<div>📶 Mobile: ${mobileCoverage}</div>` : ""}
+      </div>`;
+  }
+
+  return `
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;line-height:1.6;color:#d4d4d8;max-width:340px">
+      <div style="margin-bottom:8px">
+        <span style="background:#FFD70022;color:#FFD700;padding:2px 8px;border-radius:3px;font-size:10px;font-weight:700;letter-spacing:0.05em">⚠ PHANTOM</span>
+        <span style="background:${color}22;color:${color};padding:2px 6px;border-radius:3px;font-size:10px;font-weight:600;margin-left:4px">${risk}</span>
+        <span style="color:#71717a;margin-left:6px;font-size:10px">${id}</span>
+      </div>
+      <div style="border-top:1px solid #27272a;padding-top:6px;margin-bottom:6px">
+        <div style="color:#a1a1aa;font-size:9px;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:2px">Distance &amp; Mode</div>
+        <div><strong>${km} km</strong> · ${mode}</div>
+      </div>
+      <div style="border-top:1px solid #27272a;padding-top:6px;margin-bottom:6px">
+        <div style="color:#a1a1aa;font-size:9px;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:2px">Estimated Movement</div>
+        ${movementLines}
+      </div>
+      <div style="border-top:1px solid #27272a;padding-top:6px;margin-bottom:6px">
+        <div style="color:#a1a1aa;font-size:9px;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:2px">Formal Coverage</div>
+        <div style="color:#EF4444;font-weight:600">${coverage} monitored · ${typeof gapKm === 'number' ? gapKm.toFixed(0) : gapKm} km gap</div>
+      </div>
+      ${marketSection}
+      ${riskSection}
+      <div style="border-top:1px solid #27272a;padding-top:6px;margin-bottom:6px">
+        <div style="color:#a1a1aa;font-size:9px;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:2px">Terrain</div>
+        <div>${modeInfo.terrain}</div>
+      </div>
+      <div style="border-top:1px solid #27272a;padding-top:6px;margin-bottom:6px">
+        <div style="color:#a1a1aa;font-size:9px;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:2px">Weather &amp; Seasonal</div>
+        <div>${modeInfo.weather}</div>
+      </div>
+      ${infraSection}
+      <div style="border-top:1px solid #27272a;padding-top:6px;color:#71717a;font-size:9px">
+        Click corridor for temporal flow data
+      </div>
+    </div>
+  `;
+}
+
+function buildFormalTooltip(props: any): string {
+  const id = props.id;
+  const phantomId = props.phantom_id ?? "";
+  const coveragePct = props.coverage_pct ?? 0;
+  const gapNote = props.gap_note ?? "";
+  const monitoring = props.monitoring ?? "unknown";
+  const distKm = props.distance_km ?? 0;
+  const hasCustoms = props.customs ? "✓" : "✗";
+  const hasImmigration = props.immigration ? "✓" : "✗";
+  const hasFmp = props.iom_fmp ? "✓" : "✗";
+  const registered = props.formal_monthly_registered;
+  const totalEst = props.est_total_monthly;
+  const captureRate = props.capture_rate_pct;
+
+  let flowComparison = "";
+  if (registered != null && totalEst) {
+    const missed = totalEst - registered;
+    flowComparison = `
+      <div style="border-top:1px solid #27272a;padding-top:6px;margin-bottom:6px">
+        <div style="color:#a1a1aa;font-size:9px;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:2px">Flow Capture</div>
+        <div>📊 Registered: <strong>${formatNum(registered)}</strong>/mo</div>
+        <div>📊 Estimated total: <strong>${formatNum(totalEst)}</strong>/mo</div>
+        <div style="color:${captureRate >= 50 ? '#3B82F6' : '#EF4444'};font-weight:600;margin-top:2px">
+          Capture rate: ${captureRate}% — <span style="color:#EF4444">${formatNum(missed)} unseen</span>
+        </div>
+      </div>`;
+  }
+
+  return `
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;line-height:1.6;color:#d4d4d8;max-width:340px">
+      <div style="margin-bottom:8px">
+        <span style="background:#3B82F622;color:#3B82F6;padding:2px 8px;border-radius:3px;font-size:10px;font-weight:700;letter-spacing:0.05em">FORMAL</span>
+        <span style="color:#71717a;margin-left:6px;font-size:10px">${id} → ${phantomId}</span>
+      </div>
+      <div style="border-top:1px solid #27272a;padding-top:6px;margin-bottom:6px">
+        <div style="color:#a1a1aa;font-size:9px;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:2px">Monitoring Coverage</div>
+        <div style="font-size:18px;font-weight:700;color:${coveragePct >= 50 ? '#3B82F6' : '#EF4444'}">${coveragePct}%</div>
+      </div>
+      ${flowComparison}
+      <div style="border-top:1px solid #27272a;padding-top:6px;margin-bottom:6px">
+        <div style="color:#a1a1aa;font-size:9px;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:2px">Infrastructure</div>
+        <div>${distKm} km · ${monitoring?.replace(/_/g, " ")}</div>
+        <div style="margin-top:4px">Customs ${hasCustoms} · Immigration ${hasImmigration} · IOM FMP ${hasFmp}</div>
+      </div>
+      <div style="border-top:1px solid #27272a;padding-top:6px;margin-bottom:6px;color:#F97316">
+        <div style="color:#a1a1aa;font-size:9px;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:2px">Coverage Gap</div>
+        <div>${gapNote}</div>
+      </div>
+    </div>
+  `;
+}
+
+/* ── Main export ── */
+
 export async function drawAllCorridors(ctx: CesiumDrawContext): Promise<CorridorMeta[]> {
   const [geoRes, metaRes] = await Promise.all([
     fetch("/data/corridors_paired.geojson"),
@@ -99,6 +311,8 @@ export async function drawAllCorridors(ctx: CesiumDrawContext): Promise<Corridor
   return meta;
 }
 
+/* ── Feature renderers ── */
+
 function drawPhantomCorridor(ctx: CesiumDrawContext, feature: any) {
   const props = feature.properties;
   const id = props.id as string;
@@ -112,43 +326,13 @@ function drawPhantomCorridor(ctx: CesiumDrawContext, feature: any) {
   const cesiumColor = Cesium.Color.fromCssColorString(color);
   const modeInfo = MODE_INFO[mode] ?? MODE_INFO.mixed;
 
-  const coords: number[] = feature.geometry.coordinates.flatMap(
-    (c: [number, number]) => [c[0], c[1]]
-  );
+  // Densify the sparse coordinates
+  const rawCoords = feature.geometry.coordinates as [number, number][];
+  const denseCoords = densifyLine(rawCoords, 40);
+  const coords: number[] = denseCoords.flatMap((c) => [c[0], c[1]]);
   const positions = Cesium.Cartesian3.fromDegreesArray(coords);
 
-  const descriptionHtml = `
-    <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;line-height:1.6;color:#d4d4d8;max-width:320px">
-      <div style="margin-bottom:8px">
-        <span style="background:#FFD70022;color:#FFD700;padding:2px 8px;border-radius:3px;font-size:10px;font-weight:700;letter-spacing:0.05em">⚠ PHANTOM</span>
-        <span style="background:${color}22;color:${color};padding:2px 6px;border-radius:3px;font-size:10px;font-weight:600;margin-left:4px">${risk}</span>
-        <span style="color:#71717a;margin-left:6px;font-size:10px">${id}</span>
-      </div>
-      <div style="border-top:1px solid #27272a;padding-top:6px;margin-bottom:6px">
-        <div style="color:#a1a1aa;font-size:9px;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:2px">Distance &amp; Mode</div>
-        <div><strong>${km} km</strong> · ${mode}</div>
-      </div>
-      <div style="border-top:1px solid #27272a;padding-top:6px;margin-bottom:6px">
-        <div style="color:#a1a1aa;font-size:9px;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:2px">Formal Coverage</div>
-        <div style="color:#EF4444;font-weight:600">${coverage} monitored · ${gapKm} km gap</div>
-      </div>
-      <div style="border-top:1px solid #27272a;padding-top:6px;margin-bottom:6px">
-        <div style="color:#a1a1aa;font-size:9px;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:2px">Terrain</div>
-        <div>${modeInfo.terrain}</div>
-      </div>
-      <div style="border-top:1px solid #27272a;padding-top:6px;margin-bottom:6px">
-        <div style="color:#a1a1aa;font-size:9px;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:2px">Weather &amp; Seasonal</div>
-        <div>${modeInfo.weather}</div>
-      </div>
-      <div style="border-top:1px solid #27272a;padding-top:6px;margin-bottom:6px">
-        <div style="color:#a1a1aa;font-size:9px;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:2px">Movement Pattern</div>
-        <div>${modeInfo.description}</div>
-      </div>
-      <div style="border-top:1px solid #27272a;padding-top:6px;color:#71717a;font-size:9px">
-        Click corridor for temporal flow data
-      </div>
-    </div>
-  `;
+  const descriptionHtml = buildPhantomTooltip(props, modeInfo, color);
 
   // Glow ribbon
   ctx.addEntity(`corr-${id}-glow`, {
@@ -200,9 +384,9 @@ function drawPhantomCorridor(ctx: CesiumDrawContext, feature: any) {
     },
   });
 
-  // Midpoint label — shows PHANTOM · mode when zoomed in
-  const midIdx = Math.floor(feature.geometry.coordinates.length / 2);
-  const midCoord = feature.geometry.coordinates[midIdx];
+  // Midpoint label
+  const midIdx = Math.floor(denseCoords.length / 2);
+  const midCoord = denseCoords[midIdx];
   if (midCoord) {
     ctx.addEntity(`corr-${id}-label`, {
       position: Cesium.Cartesian3.fromDegrees(midCoord[0], midCoord[1]),
@@ -229,43 +413,16 @@ function drawFormalRoute(ctx: CesiumDrawContext, feature: any) {
   const name = props.name as string;
   const phantomId = props.phantom_id ?? "";
   const coveragePct = props.coverage_pct ?? 0;
-  const gapNote = props.gap_note ?? "";
-  const monitoring = props.monitoring ?? "unknown";
-  const distKm = props.distance_km ?? 0;
-  const hasCustoms = props.customs ? "✓" : "✗";
-  const hasImmigration = props.immigration ? "✓" : "✗";
-  const hasFmp = props.iom_fmp ? "✓" : "✗";
-
   const formalBlue = Cesium.Color.fromCssColorString("#3B82F6");
 
-  const coords: number[] = feature.geometry.coordinates.flatMap(
-    (c: [number, number]) => [c[0], c[1]]
-  );
+  // Densify
+  const rawCoords = feature.geometry.coordinates as [number, number][];
+  const denseCoords = densifyLine(rawCoords, 40);
+  const coords: number[] = denseCoords.flatMap((c) => [c[0], c[1]]);
   const positions = Cesium.Cartesian3.fromDegreesArray(coords);
 
-  const descriptionHtml = `
-    <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;line-height:1.6;color:#d4d4d8;max-width:320px">
-      <div style="margin-bottom:8px">
-        <span style="background:#3B82F622;color:#3B82F6;padding:2px 8px;border-radius:3px;font-size:10px;font-weight:700;letter-spacing:0.05em">FORMAL</span>
-        <span style="color:#71717a;margin-left:6px;font-size:10px">${id} → ${phantomId}</span>
-      </div>
-      <div style="border-top:1px solid #27272a;padding-top:6px;margin-bottom:6px">
-        <div style="color:#a1a1aa;font-size:9px;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:2px">Monitoring Coverage</div>
-        <div style="font-size:18px;font-weight:700;color:${coveragePct >= 50 ? '#3B82F6' : '#EF4444'}">${coveragePct}%</div>
-      </div>
-      <div style="border-top:1px solid #27272a;padding-top:6px;margin-bottom:6px">
-        <div style="color:#a1a1aa;font-size:9px;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:2px">Infrastructure</div>
-        <div>${distKm} km · ${monitoring?.replace(/_/g, " ")}</div>
-        <div style="margin-top:4px">Customs ${hasCustoms} · Immigration ${hasImmigration} · IOM FMP ${hasFmp}</div>
-      </div>
-      <div style="border-top:1px solid #27272a;padding-top:6px;margin-bottom:6px;color:#F97316">
-        <div style="color:#a1a1aa;font-size:9px;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:2px">Coverage Gap</div>
-        <div>${gapNote}</div>
-      </div>
-    </div>
-  `;
+  const descriptionHtml = buildFormalTooltip(props);
 
-  // Single solid blue line — no glow, no animation
   ctx.addEntity(`formal-${id}-line`, {
     name: name,
     description: descriptionHtml,
@@ -283,8 +440,8 @@ function drawFormalRoute(ctx: CesiumDrawContext, feature: any) {
   });
 
   // Midpoint label
-  const midIdx = Math.floor(feature.geometry.coordinates.length / 2);
-  const midCoord = feature.geometry.coordinates[midIdx];
+  const midIdx = Math.floor(denseCoords.length / 2);
+  const midCoord = denseCoords[midIdx];
   if (midCoord) {
     ctx.addEntity(`formal-${id}-label`, {
       position: Cesium.Cartesian3.fromDegrees(midCoord[0], midCoord[1]),
@@ -361,7 +518,6 @@ function drawFormalGate(ctx: CesiumDrawContext, feature: any) {
   const coveragePct = props.coverage_pct ?? 0;
   const formalBlue = Cesium.Color.fromCssColorString("#3B82F6");
 
-  // Blue diamond marker
   ctx.addEntity(`gate-${gateId}`, {
     position: Cesium.Cartesian3.fromDegrees(lng, lat),
     point: {
@@ -475,18 +631,17 @@ function drawPhantomPoe(ctx: CesiumDrawContext, feature: any) {
   const name = props.name || "Phantom POE";
   const gold = Cesium.Color.fromCssColorString("#FFD700");
 
-  // Pulsing outer ring
-  let pulsePhase = 0;
+  // Pulsing outer ring — use shared value to avoid semiMajor < semiMinor race
+  let pulseRadius = 3000;
+  const pulseCallback = new Cesium.CallbackProperty(() => {
+    pulseRadius = 3000 + Math.sin(Date.now() * 0.003) * 1500;
+    return pulseRadius;
+  }, false);
   ctx.addEntity(`ppoe-${poeId}-pulse`, {
     position: Cesium.Cartesian3.fromDegrees(lng, lat),
     ellipse: {
-      semiMinorAxis: new Cesium.CallbackProperty(() => {
-        pulsePhase = (pulsePhase + 0.03) % (Math.PI * 2);
-        return 3000 + Math.sin(pulsePhase) * 1500;
-      }, false),
-      semiMajorAxis: new Cesium.CallbackProperty(() => {
-        return 3000 + Math.sin(pulsePhase) * 1500;
-      }, false),
+      semiMinorAxis: pulseCallback,
+      semiMajorAxis: pulseCallback,
       material: gold.withAlpha(0.1),
       outline: true,
       outlineColor: gold.withAlpha(0.3),
