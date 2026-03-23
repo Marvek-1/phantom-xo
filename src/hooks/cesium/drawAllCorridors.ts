@@ -382,7 +382,7 @@ function drawPhantomCorridor(ctx: CesiumDrawContext, feature: any) {
     ctx.addEntity(`corr-${id}-band-${i}`, {
       corridor: {
         positions,
-        width: 6000,
+        width: 4000,
         material: cesiumColor.withAlpha(0.92),
         cornerType: Cesium.CornerType.MITERED,
         height: 0,
