@@ -122,6 +122,8 @@ const MapArea = ({ onMapReady }: MapAreaProps) => {
           cascadeActive={cesium.cascadeState?.active ?? false}
           onStartCascade={cesium.startCascade}
           onStopCascade={cesium.stopCascade}
+          layerVisibility={cesium.layerVisibility}
+          onToggleLayer={cesium.toggleLayer}
         />
       )}
 

@@ -34,6 +34,18 @@ export function useCesiumMap(containerRef: React.RefObject<HTMLDivElement | null
   const evidenceDataRef = useRef<EvidenceSignal[]>([]);
   const cascadeEngineRef = useRef<ReturnType<typeof createCascadeEngine> | null>(null);
 
+  // Layer visibility
+  const [layerVisibility, setLayerVisibility] = useState<Record<string, boolean>>({
+    corridors: true,
+    borders: true,
+    labels: true,
+    officialPOEs: true,
+    evidence: false,
+  });
+  const borderIdsRef = useRef<string[]>([]);
+  const labelIdsRef = useRef<string[]>([]);
+  const corridorEntityIdsRef = useRef<string[]>([]);
+
   const addEntity = useCallback((id: string, options: Cesium.Entity.ConstructorOptions) => {
     const viewer = viewerRef.current;
     if (!viewer) return;
@@ -175,11 +187,17 @@ export function useCesiumMap(containerRef: React.RefObject<HTMLDivElement | null
     if (!ctx) return;
 
     try {
-      const [meta] = await Promise.all([
-        drawAllCorridors(ctx),
+      const corridorStartLen = ctx.entityIds.length;
+      const [meta, borderIds, labelIds] = await Promise.all([
+        drawAllCorridors(ctx).then((m) => {
+          corridorEntityIdsRef.current = ctx.entityIds.slice(corridorStartLen);
+          return m;
+        }),
         drawBorders(ctx),
         drawGeoLabels(ctx),
       ]);
+      borderIdsRef.current = borderIds;
+      labelIdsRef.current = labelIds;
       setCorridorsMeta(meta);
 
       const { data, entityIds } = await drawEvidenceLayer(ctx);
@@ -203,7 +221,42 @@ export function useCesiumMap(containerRef: React.RefObject<HTMLDivElement | null
     const newVisible = !evidenceVisible;
     toggleEvidenceEntities(viewer, evidenceIdsRef.current, newVisible);
     setEvidenceVisible(newVisible);
+    setLayerVisibility((prev) => ({ ...prev, evidence: newVisible }));
   }, [evidenceVisible]);
+
+  // Generic layer toggle
+  const toggleLayer = useCallback((layerName: string) => {
+    const viewer = viewerRef.current;
+    if (!viewer) return;
+
+    const newVisible = !layerVisibility[layerName];
+    let ids: string[] = [];
+
+    switch (layerName) {
+      case "corridors":
+        ids = corridorEntityIdsRef.current;
+        break;
+      case "borders":
+        ids = borderIdsRef.current;
+        break;
+      case "labels":
+        ids = labelIdsRef.current;
+        break;
+      case "evidence":
+        toggleEvidenceEntities(viewer, evidenceIdsRef.current, newVisible);
+        setEvidenceVisible(newVisible);
+        setLayerVisibility((prev) => ({ ...prev, evidence: newVisible }));
+        return;
+      default:
+        return;
+    }
+
+    for (const id of ids) {
+      const entity = viewer.entities.getById(id);
+      if (entity) entity.show = newVisible;
+    }
+    setLayerVisibility((prev) => ({ ...prev, [layerName]: newVisible }));
+  }, [layerVisibility]);
 
   const startCascade = useCallback((corridorId: string) => {
     cascadeEngineRef.current?.start(corridorId, (s) => {
@@ -271,5 +324,7 @@ export function useCesiumMap(containerRef: React.RefObject<HTMLDivElement | null
     stopCascade,
     selectedCorridorId,
     setSelectedCorridorId,
+    layerVisibility,
+    toggleLayer,
   };
 }

@@ -18,7 +18,8 @@ function inBounds(coords: [number, number][]): boolean {
   );
 }
 
-export async function drawBorders(ctx: CesiumDrawContext): Promise<void> {
+export async function drawBorders(ctx: CesiumDrawContext): Promise<string[]> {
+  const startLen = ctx.entityIds.length;
   try {
     const res = await fetch(GEOJSON_URL);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -55,7 +56,9 @@ export async function drawBorders(ctx: CesiumDrawContext): Promise<void> {
       }
     }
     console.log(`[Cesium] Drew ${idx} border segments`);
+    return ctx.entityIds.slice(startLen);
   } catch (err) {
     console.warn("[Cesium] Failed to load admin boundaries:", err);
+    return [];
   }
 }
