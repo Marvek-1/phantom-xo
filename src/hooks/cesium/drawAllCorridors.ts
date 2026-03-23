@@ -17,6 +17,56 @@ const RISK_COLORS: Record<string, string> = {
   MEDIUM: "#EAB308",
 };
 
+/* ── Gradient risk color utilities ── */
+
+const GRADIENT_PEAKS: Record<string, string> = {
+  CRITICAL: "#DC2626",
+  HIGH: "#EF4444",
+  MEDIUM: "#F59E0B",
+};
+
+const GRADIENT_GREEN = { r: 34, g: 197, b: 94 };   // #22C55E
+const GRADIENT_YELLOW = { r: 234, g: 179, b: 8 };   // #EAB308
+const GRADIENT_RED = { r: 239, g: 68, b: 68 };       // #EF4444
+const GRADIENT_CRIT = { r: 220, g: 38, b: 38 };      // #DC2626
+
+function lerpColor(
+  a: { r: number; g: number; b: number },
+  b: { r: number; g: number; b: number },
+  t: number
+): { r: number; g: number; b: number } {
+  return {
+    r: Math.round(a.r + (b.r - a.r) * t),
+    g: Math.round(a.g + (b.g - a.g) * t),
+    b: Math.round(a.b + (b.b - a.b) * t),
+  };
+}
+
+/**
+ * V-shape gradient: green at both ends, peak color at center.
+ * `t` goes 0→1 along the corridor path.
+ * `risk` shifts how red the peak is.
+ */
+function scoreToColor(t: number, risk: string): Cesium.Color {
+  // V-shape: convert t to 0→1→0 (peaks at center)
+  const v = 1 - Math.abs(2 * t - 1); // 0 at ends, 1 at center
+
+  // Choose peak based on risk
+  const peak = risk === "CRITICAL" ? GRADIENT_CRIT
+    : risk === "HIGH" ? GRADIENT_RED
+    : GRADIENT_YELLOW;
+
+  // Two-stop gradient: green → peak
+  let rgb: { r: number; g: number; b: number };
+  if (v < 0.5) {
+    rgb = lerpColor(GRADIENT_GREEN, GRADIENT_YELLOW, v * 2);
+  } else {
+    rgb = lerpColor(GRADIENT_YELLOW, peak, (v - 0.5) * 2);
+  }
+
+  return new Cesium.Color(rgb.r / 255, rgb.g / 255, rgb.b / 255, 1.0);
+}
+
 const MODE_INFO: Record<string, { terrain: string; weather: string; description: string }> = {
   canoe: {
     terrain: "Riverine — Congo/Ubangi basin waterways",
@@ -326,34 +376,72 @@ function drawPhantomCorridor(ctx: CesiumDrawContext, feature: any) {
   const cesiumColor = Cesium.Color.fromCssColorString(color);
   const modeInfo = MODE_INFO[mode] ?? MODE_INFO.mixed;
 
-  // Densify the sparse coordinates
   const rawCoords = feature.geometry.coordinates as [number, number][];
   const denseCoords = densifyLine(rawCoords, 40);
-  const coords: number[] = denseCoords.flatMap((c) => [c[0], c[1]]);
-  const positions = Cesium.Cartesian3.fromDegreesArray(coords);
-
+  const allCoords: number[] = denseCoords.flatMap((c) => [c[0], c[1]]);
+  const allPositions = Cesium.Cartesian3.fromDegreesArray(allCoords);
   const descriptionHtml = buildPhantomTooltip(props, modeInfo, color);
+  const totalSegs = denseCoords.length - 1;
 
-  // Glow ribbon
+  // Layer 1: Glow — single entity, wide, low alpha, uses risk color
   ctx.addEntity(`corr-${id}-glow`, {
     polyline: {
-      positions,
+      positions: allPositions,
       clampToGround: true,
-      width: 20,
-      material: cesiumColor.withAlpha(0.06),
+      width: 18,
+      material: new Cesium.PolylineGlowMaterialProperty({
+        glowPower: 0.25,
+        color: cesiumColor.withAlpha(0.15),
+      }),
     },
   });
 
-  // Animated dash
+  // Layer 2: Gradient spine — batched by color similarity
+  let batchStart = 0;
+  let batchColor = scoreToColor(0, risk);
+  const COLOR_THRESHOLD = 0.05;
+
+  for (let i = 1; i <= totalSegs; i++) {
+    const segColor = i < totalSegs ? scoreToColor(i / totalSegs, risk) : batchColor;
+    const diff = Math.abs(segColor.red - batchColor.red) +
+                 Math.abs(segColor.green - batchColor.green) +
+                 Math.abs(segColor.blue - batchColor.blue);
+
+    if (diff > COLOR_THRESHOLD || i === totalSegs) {
+      const end = i === totalSegs ? i + 1 : i + 1;
+      const slice = denseCoords.slice(batchStart, Math.min(end, denseCoords.length));
+      if (slice.length >= 2) {
+        const batchPositions = Cesium.Cartesian3.fromDegreesArray(
+          slice.flatMap((c) => [c[0], c[1]])
+        );
+        // Use midpoint color for this batch
+        const midT = (batchStart + (slice.length - 1) / 2) / totalSegs;
+        const midColor = scoreToColor(midT, risk);
+
+        ctx.addEntity(`corr-${id}-grad-${batchStart}`, {
+          polyline: {
+            positions: batchPositions,
+            clampToGround: true,
+            width: 4,
+            material: midColor.withAlpha(0.85),
+          },
+        });
+      }
+      batchStart = i;
+      batchColor = segColor;
+    }
+  }
+
+  // Layer 3: Animated dash — single entity showing flow direction
   let dashOffset = 0;
   ctx.addEntity(`corr-${id}-dash`, {
     polyline: {
-      positions,
+      positions: allPositions,
       clampToGround: true,
-      width: 4,
+      width: 2,
       material: new Cesium.PolylineDashMaterialProperty({
-        color: cesiumColor.withAlpha(0.6),
-        dashLength: 18,
+        color: Cesium.Color.WHITE.withAlpha(0.45),
+        dashLength: 16,
         dashPattern: new Cesium.CallbackProperty(() => {
           dashOffset = (dashOffset + 1) % 16;
           const base = 0xff00;
@@ -363,15 +451,15 @@ function drawPhantomCorridor(ctx: CesiumDrawContext, feature: any) {
     },
   });
 
-  // Solid spine — clickable, carries tooltip
+  // Clickable invisible spine for tooltip
   ctx.addEntity(`corr-${id}-spine`, {
     name: name,
     description: descriptionHtml,
     polyline: {
-      positions,
+      positions: allPositions,
       clampToGround: true,
-      width: 1.5,
-      material: cesiumColor,
+      width: 8,
+      material: Cesium.Color.TRANSPARENT,
     },
     properties: {
       corridorId: id,
@@ -629,46 +717,28 @@ function drawPhantomPoe(ctx: CesiumDrawContext, feature: any) {
   const [lng, lat] = feature.geometry.coordinates as [number, number];
   const poeId = props.id || `ppoe-${lng}-${lat}`;
   const name = props.name || "Phantom POE";
-  const gold = Cesium.Color.fromCssColorString("#FFD700");
 
-  // Pulsing outer ring — single shared CallbackProperty prevents axis mismatch crash
-  const pulse = new Cesium.CallbackProperty(() => {
-    return Math.max(1, 3000 + Math.abs(Math.sin(Date.now() * 0.003)) * 1500);
-  }, false);
-  ctx.addEntity(`ppoe-${poeId}-pulse`, {
-    position: Cesium.Cartesian3.fromDegrees(lng, lat),
-    ellipse: {
-      semiMinorAxis: pulse,
-      semiMajorAxis: pulse,
-      material: gold.withAlpha(0.1),
-      outline: true,
-      outlineColor: gold.withAlpha(0.3),
-      outlineWidth: 1,
-      heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
-    },
-  });
-
-  // Core gold point
+  // Static white diamond marker — no pulsing ellipse, no semiMajorAxis crash
   ctx.addEntity(`ppoe-${poeId}`, {
     position: Cesium.Cartesian3.fromDegrees(lng, lat),
     point: {
-      pixelSize: 16,
-      color: gold.withAlpha(0.95),
-      outlineColor: gold.withAlpha(0.4),
-      outlineWidth: 4,
+      pixelSize: 8,
+      color: Cesium.Color.WHITE.withAlpha(0.95),
+      outlineColor: Cesium.Color.fromCssColorString("#FFD700").withAlpha(0.6),
+      outlineWidth: 2,
       disableDepthTestDistance: Number.POSITIVE_INFINITY,
       heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
     },
     label: {
-      text: name,
-      font: 'bold 10px "IBM Plex Mono", monospace',
-      fillColor: gold,
+      text: `◇ ${name}`,
+      font: 'bold 9px "IBM Plex Mono", monospace',
+      fillColor: Cesium.Color.WHITE.withAlpha(0.9),
       outlineColor: Cesium.Color.fromCssColorString(T.bg),
       outlineWidth: 3,
       style: Cesium.LabelStyle.FILL_AND_OUTLINE,
       verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
       horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
-      pixelOffset: new Cesium.Cartesian2(0, -20),
+      pixelOffset: new Cesium.Cartesian2(0, -12),
       disableDepthTestDistance: Number.POSITIVE_INFINITY,
       scaleByDistance: new Cesium.NearFarScalar(1e4, 1.0, 3e6, 0.4),
       distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 2_500_000),
