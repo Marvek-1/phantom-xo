@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronDown, ChevronUp, Play, Square } from "lucide-react";
+import { ChevronDown, ChevronUp, Play, Square, Layers, Eye, EyeOff } from "lucide-react";
 
 interface CorridorMeta {
   id: string;
@@ -19,6 +19,8 @@ interface MapLegendProps {
   cascadeActive?: boolean;
   onStartCascade?: (corridorId: string) => void;
   onStopCascade?: () => void;
+  layerVisibility?: Record<string, boolean>;
+  onToggleLayer?: (layer: string) => void;
 }
 
 const MapLegend = ({
