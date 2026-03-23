@@ -34,6 +34,18 @@ export function useCesiumMap(containerRef: React.RefObject<HTMLDivElement | null
   const evidenceDataRef = useRef<EvidenceSignal[]>([]);
   const cascadeEngineRef = useRef<ReturnType<typeof createCascadeEngine> | null>(null);
 
+  // Layer visibility
+  const [layerVisibility, setLayerVisibility] = useState<Record<string, boolean>>({
+    corridors: true,
+    borders: true,
+    labels: true,
+    officialPOEs: true,
+    evidence: false,
+  });
+  const borderIdsRef = useRef<string[]>([]);
+  const labelIdsRef = useRef<string[]>([]);
+  const corridorEntityIdsRef = useRef<string[]>([]);
+
   const addEntity = useCallback((id: string, options: Cesium.Entity.ConstructorOptions) => {
     const viewer = viewerRef.current;
     if (!viewer) return;
