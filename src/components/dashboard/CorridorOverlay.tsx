@@ -1,4 +1,3 @@
-import { useState } from "react";
 import type { CorridorAnalysisResult } from "@/types/phantom";
 
 const SOURCE_COLORS: Record<string, string> = {
@@ -23,19 +22,19 @@ const riskColor = (risk: string) => {
 
 const CorridorOverlay = ({ analysis }: CorridorOverlayProps) => {
   return (
-    <div className="absolute top-4 left-4 z-10 w-80 max-h-[calc(100vh-8rem)] overflow-y-auto animate-fade-in-up">
+    <div className="absolute top-4 left-4 z-10 w-96 max-h-[calc(100vh-8rem)] overflow-y-auto animate-fade-in-up">
       <div className="bg-card/95 border border-border rounded-lg backdrop-blur-sm overflow-hidden">
         {/* Header */}
         <div className="px-4 py-3 border-b border-border space-y-1">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-mono font-semibold text-phantom-green tracking-wide">
+            <span className="text-sm font-mono font-semibold text-phantom-green tracking-wide">
               {analysis.id}
             </span>
-            <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-secondary text-muted-foreground uppercase">
+            <span className="text-xs font-mono px-2 py-1 rounded bg-secondary text-muted-foreground uppercase">
               {analysis.latentState ?? "unknown"}
             </span>
           </div>
-          <div className="flex items-center justify-between text-[10px] font-mono text-muted-foreground">
+          <div className="flex items-center justify-between text-sm font-mono text-muted-foreground">
             <span>{analysis.region}</span>
             <span className={riskColor(analysis.riskClass ?? "")}>
               {analysis.riskClass}
@@ -51,9 +50,9 @@ const CorridorOverlay = ({ analysis }: CorridorOverlayProps) => {
             { label: "DISTANCE", value: `${analysis.totalKm} km` },
             { label: "MODE", value: analysis.mode },
           ].map((m) => (
-            <div key={m.label} className="bg-card px-3 py-2">
-              <span className="text-[9px] font-mono text-muted-foreground block">{m.label}</span>
-              <span className="text-xs font-mono font-semibold text-foreground">{m.value ?? "—"}</span>
+            <div key={m.label} className="bg-card px-3 py-2.5">
+              <span className="text-xs font-mono text-muted-foreground block">{m.label}</span>
+              <span className="text-sm font-mono font-semibold text-foreground">{m.value ?? "—"}</span>
             </div>
           ))}
         </div>
@@ -61,20 +60,20 @@ const CorridorOverlay = ({ analysis }: CorridorOverlayProps) => {
         {/* Souls */}
         {analysis.souls && (
           <div className="px-4 py-3 border-t border-border">
-            <span className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider block mb-2">
+            <span className="text-xs font-mono text-muted-foreground uppercase tracking-wider block mb-2">
               7 Mathematical Souls
             </span>
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               {Object.entries(analysis.souls).map(([key, val]) => (
                 <div key={key} className="flex items-center gap-2">
-                  <span className="text-[9px] font-mono text-muted-foreground w-20 uppercase truncate">{key}</span>
-                  <div className="flex-1 h-1 rounded-full bg-secondary overflow-hidden">
+                  <span className="text-xs font-mono text-muted-foreground w-24 uppercase truncate">{key}</span>
+                  <div className="flex-1 h-1.5 rounded-full bg-secondary overflow-hidden">
                     <div
                       className="h-full rounded-full bg-phantom-green/70 transition-all duration-500"
                       style={{ width: `${Math.min(val * 100, 100)}%` }}
                     />
                   </div>
-                  <span className="text-[9px] font-mono text-foreground tabular-nums w-8 text-right">
+                  <span className="text-xs font-mono text-foreground tabular-nums w-10 text-right">
                     {val.toFixed(2)}
                   </span>
                 </div>
@@ -86,19 +85,19 @@ const CorridorOverlay = ({ analysis }: CorridorOverlayProps) => {
         {/* Forecast */}
         {analysis.forecast && (
           <div className="px-4 py-3 border-t border-border">
-            <span className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider block mb-2">
+            <span className="text-xs font-mono text-muted-foreground uppercase tracking-wider block mb-2">
               Forecast
             </span>
             <div className="flex gap-4">
               <div>
-                <span className="text-[9px] font-mono text-muted-foreground block">NEXT ACTIVATION</span>
-                <span className="text-xs font-mono font-semibold text-phantom-amber">
+                <span className="text-xs font-mono text-muted-foreground block">NEXT ACTIVATION</span>
+                <span className="text-sm font-mono font-semibold text-phantom-amber">
                   {((analysis.forecast.nextActivationLikelihood ?? 0) * 100).toFixed(0)}%
                 </span>
               </div>
               <div>
-                <span className="text-[9px] font-mono text-muted-foreground block">DRIFT</span>
-                <span className="text-xs font-mono font-semibold text-foreground">
+                <span className="text-xs font-mono text-muted-foreground block">DRIFT</span>
+                <span className="text-sm font-mono font-semibold text-foreground">
                   {analysis.forecast.driftDirectionDeg}°
                 </span>
               </div>
@@ -106,25 +105,25 @@ const CorridorOverlay = ({ analysis }: CorridorOverlayProps) => {
           </div>
         )}
 
-        {/* Nodes — type-differentiated */}
+        {/* Nodes */}
         {analysis.nodes && analysis.nodes.length > 0 && (
           <div className="px-4 py-3 border-t border-border">
-            <span className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider block mb-2">
+            <span className="text-xs font-mono text-muted-foreground uppercase tracking-wider block mb-2">
               Corridor Nodes
             </span>
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               {analysis.nodes.map((node) => (
-                <div key={node.id} className="flex items-center justify-between text-[10px] font-mono">
+                <div key={node.id} className="flex items-center justify-between text-sm font-mono">
                   <div className="flex items-center gap-1.5 min-w-0">
-                    <span className={`inline-block w-2 h-2 flex-shrink-0 ${
+                    <span className={`inline-block w-2.5 h-2.5 flex-shrink-0 ${
                       node.type === "FORMAL_POE" ? "rotate-45 bg-[hsl(var(--phantom-blue))]" :
                       node.type === "PHANTOM_POE" ? "rounded-full bg-[hsl(var(--phantom-amber))] animate-pulse" :
                       "rounded-full bg-[hsl(var(--phantom-teal))]"
                     }`} />
-                    <span className="text-foreground truncate max-w-[110px]">{node.name}</span>
+                    <span className="text-foreground truncate max-w-[140px]">{node.name}</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className={`text-[9px] ${
+                    <span className={`text-xs ${
                       node.type === "FORMAL_POE" ? "text-phantom-blue" :
                       node.type === "PHANTOM_POE" ? "text-phantom-amber" :
                       "text-muted-foreground"
@@ -140,15 +139,15 @@ const CorridorOverlay = ({ analysis }: CorridorOverlayProps) => {
         {/* Evidence */}
         {analysis.evidence && analysis.evidence.length > 0 && (
           <div className="px-4 py-3 border-t border-border">
-            <span className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider block mb-2">
+            <span className="text-xs font-mono text-muted-foreground uppercase tracking-wider block mb-2">
               Evidence Provenance
             </span>
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               {analysis.evidence.map((ev, i) => (
-                <div key={i} className="text-[10px] font-mono">
+                <div key={i} className="text-sm font-mono">
                   <div className="flex items-center justify-between gap-1">
                     <div className="flex items-center gap-1.5">
-                      <span className={`px-1 py-0.5 rounded text-[8px] font-semibold uppercase ${SOURCE_COLORS[ev.source] ?? "bg-secondary text-muted-foreground"}`}>
+                      <span className={`px-1.5 py-0.5 rounded text-xs font-semibold uppercase ${SOURCE_COLORS[ev.source] ?? "bg-secondary text-muted-foreground"}`}>
                         {ev.source}
                       </span>
                       <span className="text-muted-foreground">{ev.type}</span>
@@ -158,7 +157,7 @@ const CorridorOverlay = ({ analysis }: CorridorOverlayProps) => {
                     </span>
                   </div>
                   {ev.locationConfidence && (
-                    <span className="text-muted-foreground/40 text-[9px]">
+                    <span className="text-muted-foreground/40 text-xs">
                       {ev.locationConfidence}
                     </span>
                   )}
@@ -171,10 +170,10 @@ const CorridorOverlay = ({ analysis }: CorridorOverlayProps) => {
         {/* Trace lines */}
         {analysis.traceLines && analysis.traceLines.length > 0 && (
           <div className="px-4 py-3 border-t border-border">
-            <span className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider block mb-2">
+            <span className="text-xs font-mono text-muted-foreground uppercase tracking-wider block mb-2">
               Inference Trace
             </span>
-            <pre className="text-[9px] font-mono text-muted-foreground/80 whitespace-pre-wrap leading-relaxed">
+            <pre className="text-xs font-mono text-muted-foreground/80 whitespace-pre-wrap leading-relaxed">
               {analysis.traceLines.join("\n")}
             </pre>
           </div>

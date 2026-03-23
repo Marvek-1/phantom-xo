@@ -37,19 +37,19 @@ const MapLegend = ({
 
   return (
     <div className="absolute bottom-4 right-4 z-10 animate-fade-in">
-      <div className="bg-card/90 border border-border rounded-lg backdrop-blur-sm overflow-hidden min-w-[210px] max-h-[70vh] overflow-y-auto">
+      <div className="bg-card/90 border border-border rounded-lg backdrop-blur-sm overflow-hidden min-w-[240px] max-h-[70vh] overflow-y-auto">
         <button
           onClick={() => setExpanded(!expanded)}
-          className="w-full px-3 py-2 flex items-center justify-between text-[10px] font-mono text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors"
+          className="w-full px-3 py-2.5 flex items-center justify-between text-xs font-mono text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors"
         >
           <span>Legend</span>
-          {expanded ? <ChevronDown className="w-3 h-3" /> : <ChevronUp className="w-3 h-3" />}
+          {expanded ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
         </button>
 
         {expanded && (
-          <div className="px-3 pb-2.5 space-y-1.5 border-t border-border pt-2">
+          <div className="px-3 pb-3 space-y-2 border-t border-border pt-2.5">
             {/* UNMONITORED — Phantom corridors */}
-            <p className="text-[9px] font-mono text-[hsl(var(--phantom-amber))] uppercase tracking-wider font-semibold">
+            <p className="text-xs font-mono text-[hsl(var(--phantom-amber))] uppercase tracking-wider font-semibold">
               Phantom Corridors
             </p>
             <LegendItem
@@ -62,8 +62,8 @@ const MapLegend = ({
             />
 
             {/* MONITORED — Formal routes */}
-            <div className="pt-1.5 mt-1 border-t border-border">
-              <p className="text-[9px] font-mono text-[hsl(217,91%,60%)] uppercase tracking-wider font-semibold mb-1">
+            <div className="pt-2 mt-1.5 border-t border-border">
+              <p className="text-xs font-mono text-[hsl(217,91%,60%)] uppercase tracking-wider font-semibold mb-1.5">
                 Formal Routes
               </p>
               <LegendItem
@@ -82,11 +82,11 @@ const MapLegend = ({
 
             {/* Coverage gap */}
             {corridorsLoaded && (
-              <div className="pt-1.5 mt-1 border-t border-border">
-                <p className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider mb-1.5">
+              <div className="pt-2 mt-1.5 border-t border-border">
+                <p className="text-xs font-mono text-muted-foreground uppercase tracking-wider mb-2">
                   Coverage Gap
                 </p>
-                <div className="flex h-2.5 rounded-full overflow-hidden border border-border">
+                <div className="flex h-3 rounded-full overflow-hidden border border-border">
                   <div
                     className="bg-[hsl(217,91%,60%)]"
                     style={{ width: "29.4%" }}
@@ -98,34 +98,34 @@ const MapLegend = ({
                     title="Unmonitored: 70.6%"
                   />
                 </div>
-                <div className="flex justify-between mt-1">
-                  <span className="text-[8px] font-mono text-[hsl(217,91%,60%)]">29.4% monitored</span>
-                  <span className="text-[8px] font-mono text-destructive">70.6% hidden</span>
+                <div className="flex justify-between mt-1.5">
+                  <span className="text-xs font-mono text-[hsl(217,91%,60%)]">29.4% monitored</span>
+                  <span className="text-xs font-mono text-destructive">70.6% hidden</span>
                 </div>
-                <p className="text-[9px] font-mono text-muted-foreground tabular-nums mt-1">
+                <p className="text-xs font-mono text-muted-foreground tabular-nums mt-1">
                   {corridorsMeta.length} corridors
                 </p>
               </div>
             )}
 
             {/* Toggles */}
-            <div className="pt-1.5 mt-1 border-t border-border space-y-1">
-              <label className="flex items-center gap-2 text-[10px] font-mono text-muted-foreground cursor-pointer select-none">
+            <div className="pt-2 mt-1.5 border-t border-border space-y-1.5">
+              <label className="flex items-center gap-2 text-sm font-mono text-muted-foreground cursor-pointer select-none">
                 <input
                   type="checkbox"
                   checked={officialPOEsVisible}
                   onChange={(e) => onTogglePOEs(e.target.checked)}
-                  className="w-3 h-3 rounded border-border accent-[hsl(217,91%,60%)]"
+                  className="w-3.5 h-3.5 rounded border-border accent-[hsl(217,91%,60%)]"
                 />
                 <span>Show Official POEs</span>
               </label>
               {onToggleEvidence && (
-                <label className="flex items-center gap-2 text-[10px] font-mono text-muted-foreground cursor-pointer select-none">
+                <label className="flex items-center gap-2 text-sm font-mono text-muted-foreground cursor-pointer select-none">
                   <input
                     type="checkbox"
                     checked={evidenceVisible}
                     onChange={onToggleEvidence}
-                    className="w-3 h-3 rounded border-border accent-[hsl(var(--phantom-green))]"
+                    className="w-3.5 h-3.5 rounded border-border accent-[hsl(var(--phantom-green))]"
                   />
                   <span>Show Evidence Signals</span>
                 </label>
@@ -134,14 +134,14 @@ const MapLegend = ({
 
             {/* Cascade controls */}
             {onStartCascade && corridorsMeta.length > 0 && (
-              <div className="pt-1.5 mt-1 border-t border-border space-y-1">
-                <p className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider mb-1">
+              <div className="pt-2 mt-1.5 border-t border-border space-y-1.5">
+                <p className="text-xs font-mono text-muted-foreground uppercase tracking-wider mb-1.5">
                   Cascade Replay
                 </p>
                 <select
                   value={cascadeCorridorId}
                   onChange={(e) => setCascadeCorridorId(e.target.value)}
-                  className="w-full text-[9px] font-mono bg-background border border-border rounded px-1.5 py-1 text-foreground/80"
+                  className="w-full text-xs font-mono bg-background border border-border rounded px-2 py-1.5 text-foreground/80"
                   disabled={cascadeActive}
                 >
                   <option value="">Select corridor…</option>
@@ -151,21 +151,21 @@ const MapLegend = ({
                     </option>
                   ))}
                 </select>
-                <div className="flex gap-1">
+                <div className="flex gap-1.5">
                   <button
                     onClick={() => cascadeCorridorId && onStartCascade(cascadeCorridorId)}
                     disabled={!cascadeCorridorId || cascadeActive}
-                    className="flex items-center gap-1 px-2 py-0.5 text-[9px] font-mono rounded bg-[hsl(var(--phantom-green))]/20 text-[hsl(var(--phantom-green))] hover:bg-[hsl(var(--phantom-green))]/30 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    className="flex items-center gap-1 px-2.5 py-1 text-xs font-mono rounded bg-[hsl(var(--phantom-green))]/20 text-[hsl(var(--phantom-green))] hover:bg-[hsl(var(--phantom-green))]/30 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                   >
-                    <Play className="w-2.5 h-2.5" />
+                    <Play className="w-3 h-3" />
                     Play
                   </button>
                   {cascadeActive && onStopCascade && (
                     <button
                       onClick={onStopCascade}
-                      className="flex items-center gap-1 px-2 py-0.5 text-[9px] font-mono rounded bg-destructive/20 text-destructive hover:bg-destructive/30 transition-colors"
+                      className="flex items-center gap-1 px-2.5 py-1 text-xs font-mono rounded bg-destructive/20 text-destructive hover:bg-destructive/30 transition-colors"
                     >
-                      <Square className="w-2.5 h-2.5" />
+                      <Square className="w-3 h-3" />
                       Stop
                     </button>
                   )}
@@ -183,14 +183,13 @@ const MapLegend = ({
 
 function LegendItem({ label, swatch }: { label: string; swatch: React.ReactNode }) {
   return (
-    <div className="flex items-center gap-2 text-[10px] font-mono text-foreground/80">
+    <div className="flex items-center gap-2 text-sm font-mono text-foreground/80">
       <div className="w-5 flex-shrink-0 flex items-center justify-center">{swatch}</div>
       <span>{label}</span>
     </div>
   );
 }
 
-/** Green → Yellow → Red gradient bar matching the corridor risk gradient */
 function GradientBarSwatch() {
   return (
     <div
@@ -202,24 +201,21 @@ function GradientBarSwatch() {
   );
 }
 
-/** Solid blue line matching the formal route on the map */
 function FormalLineSwatch() {
   return (
     <div className="w-5 h-[3px] rounded-full bg-[hsl(217,91%,60%)]" />
   );
 }
 
-/** White diamond with gold outline matching phantom POE */
 function PhantomPoeSwatch() {
   return (
     <div
-      className="w-2 h-2 rotate-45 bg-white border"
+      className="w-2.5 h-2.5 rotate-45 bg-white border"
       style={{ borderColor: "#FFD700" }}
     />
   );
 }
 
-/** Blue square with white border — matching formal gate point */
 function GateSwatch() {
   return (
     <div
@@ -229,12 +225,11 @@ function GateSwatch() {
   );
 }
 
-/** Cyan circle with outer ring matching IOM FMP flow ring */
 function FmpSwatch() {
   return (
-    <div className="relative w-3 h-3 flex items-center justify-center">
+    <div className="relative w-3.5 h-3.5 flex items-center justify-center">
       <div className="absolute inset-0 rounded-full border" style={{ borderColor: "hsl(var(--phantom-teal))", opacity: 0.4 }} />
-      <div className="w-2 h-2 rounded-full" style={{ backgroundColor: "hsl(var(--phantom-teal))" }} />
+      <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: "hsl(var(--phantom-teal))" }} />
     </div>
   );
 }

@@ -98,7 +98,6 @@ const ChatPanel = ({ collapsed, onToggle, onMapQuery }: ChatPanelProps) => {
         signal: ac.signal,
       });
 
-      // Check for tool calls in final response
       const toolCalls = extractToolCalls(assistantSoFar);
       if (toolCalls.length > 0) {
         setChatState(CS.EXECUTING);
@@ -137,7 +136,7 @@ const ChatPanel = ({ collapsed, onToggle, onMapQuery }: ChatPanelProps) => {
   return (
     <div
       className={`relative flex flex-col border-l border-border bg-card transition-[width] duration-300 ease-out ${
-        collapsed ? "w-0 overflow-hidden border-l-0" : "w-[380px]"
+        collapsed ? "w-0 overflow-hidden border-l-0" : "w-[420px]"
       }`}
     >
       {/* Toggle */}
@@ -154,13 +153,13 @@ const ChatPanel = ({ collapsed, onToggle, onMapQuery }: ChatPanelProps) => {
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-border">
             <div className="flex items-center gap-2">
-              <span className="text-phantom-green font-mono text-xs font-semibold tracking-wider">
+              <span className="text-phantom-green font-mono text-sm font-semibold tracking-wider">
                 Phantom AI · Ollam
               </span>
-              <span className="w-1.5 h-1.5 rounded-full bg-phantom-green/60 animate-pulse" />
+              <span className="w-2 h-2 rounded-full bg-phantom-green/60 animate-pulse" />
             </div>
             {isThinkingMode && (
-              <span className="text-[9px] font-mono text-phantom-amber px-1.5 py-0.5 rounded bg-phantom-amber/10 border border-phantom-amber/20">
+              <span className="text-xs font-mono text-phantom-amber px-2 py-1 rounded bg-phantom-amber/10 border border-phantom-amber/20">
                 DEEP THINK
               </span>
             )}
@@ -170,18 +169,18 @@ const ChatPanel = ({ collapsed, onToggle, onMapQuery }: ChatPanelProps) => {
           <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
             {messages.length === 0 && (
               <div className="flex flex-col items-center justify-center h-full gap-3 py-16">
-                <span className="text-phantom-green/30 font-mono text-3xl select-none">
+                <span className="text-phantom-green/30 font-mono text-4xl select-none">
                   ◉⟁⬡
                 </span>
-                <p className="text-xs text-muted-foreground text-center max-w-[240px] leading-relaxed">
+                <p className="text-sm text-muted-foreground text-center max-w-[280px] leading-relaxed">
                   Phantom AI is online. Ask about corridors, signals, threat analysis, or give direct commands.
                 </p>
-                <div className="flex flex-wrap gap-1.5 justify-center max-w-[280px] mt-2">
+                <div className="flex flex-wrap gap-1.5 justify-center max-w-[320px] mt-2">
                   {EXAMPLE_PROMPTS.slice(0, 3).map((p, i) => (
                     <button
                       key={i}
                       onClick={() => setInput(p)}
-                      className="text-[9px] font-mono text-muted-foreground/70 px-2 py-1 rounded border border-border hover:border-phantom-green/30 hover:text-foreground transition-colors active:scale-95 text-left"
+                      className="text-xs font-mono text-muted-foreground/70 px-2.5 py-1.5 rounded border border-border hover:border-phantom-green/30 hover:text-foreground transition-colors active:scale-95 text-left"
                     >
                       {p.slice(0, 40)}…
                     </button>
@@ -197,10 +196,10 @@ const ChatPanel = ({ collapsed, onToggle, onMapQuery }: ChatPanelProps) => {
                 style={{ animationDelay: `${Math.min(i * 40, 200)}ms` }}
               >
                 <div
-                  className={`rounded-lg px-3 py-2.5 text-sm leading-relaxed overflow-wrap-break-word ${
+                  className={`rounded-lg px-3.5 py-3 text-sm leading-relaxed overflow-wrap-break-word ${
                     msg.role === "user"
                       ? "bg-secondary text-foreground"
-                      : "bg-phantom-surface border border-border text-foreground font-mono text-xs"
+                      : "bg-phantom-surface border border-border text-foreground font-mono"
                   }`}
                 >
                   {msg.content.split("\n").map((line, j) => (
@@ -210,7 +209,7 @@ const ChatPanel = ({ collapsed, onToggle, onMapQuery }: ChatPanelProps) => {
                     </span>
                   ))}
                 </div>
-                <span className="text-[9px] font-mono text-muted-foreground/50 mt-1 block px-1">
+                <span className="text-xs font-mono text-muted-foreground/50 mt-1 block px-1">
                   {msg.role === "user" ? "you" : "phantom"} · just now
                 </span>
               </div>
@@ -219,8 +218,8 @@ const ChatPanel = ({ collapsed, onToggle, onMapQuery }: ChatPanelProps) => {
             {/* Status */}
             {chatState !== CS.IDLE && (
               <div className="flex items-center gap-2 px-2 py-1.5 animate-fade-in-up">
-                <Loader2 className="w-3.5 h-3.5 text-phantom-green animate-spin" />
-                <span className="text-[10px] font-mono text-phantom-green">
+                <Loader2 className="w-4 h-4 text-phantom-green animate-spin" />
+                <span className="text-sm font-mono text-phantom-green">
                   {stateLabel[chatState]}
                 </span>
               </div>
@@ -237,13 +236,13 @@ const ChatPanel = ({ collapsed, onToggle, onMapQuery }: ChatPanelProps) => {
                 onKeyDown={handleKeyDown}
                 placeholder={placeholder}
                 disabled={chatState !== CS.IDLE}
-                className="flex-1 h-9 bg-secondary border border-border rounded-md px-3 text-sm text-foreground placeholder:text-muted-foreground/50 font-mono text-xs focus:outline-none focus:ring-1 focus:ring-phantom-green/40 transition-shadow disabled:opacity-50"
+                className="flex-1 h-10 bg-secondary border border-border rounded-md px-3 text-sm text-foreground placeholder:text-muted-foreground/50 font-mono focus:outline-none focus:ring-1 focus:ring-phantom-green/40 transition-shadow disabled:opacity-50"
                 autoComplete="off"
               />
               <button
                 onClick={handleSend}
                 disabled={!input.trim() || chatState !== CS.IDLE}
-                className="flex items-center justify-center h-9 w-9 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-30 disabled:cursor-not-allowed transition-all active:scale-95"
+                className="flex items-center justify-center h-10 w-10 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-30 disabled:cursor-not-allowed transition-all active:scale-95"
                 aria-label="Send message"
               >
                 <Send className="w-4 h-4" />
@@ -254,7 +253,7 @@ const ChatPanel = ({ collapsed, onToggle, onMapQuery }: ChatPanelProps) => {
                 className="text-muted-foreground hover:text-foreground transition-colors active:scale-95"
                 aria-label="Voice input"
               >
-                <Mic className="w-3.5 h-3.5" />
+                <Mic className="w-4 h-4" />
               </button>
               <label className="flex items-center gap-1.5 cursor-pointer select-none">
                 <input
@@ -263,8 +262,8 @@ const ChatPanel = ({ collapsed, onToggle, onMapQuery }: ChatPanelProps) => {
                   onChange={(e) => setIsThinkingMode(e.target.checked)}
                   className="sr-only peer"
                 />
-                <span className="w-3 h-3 rounded-sm border border-muted-foreground/40 peer-checked:bg-phantom-green peer-checked:border-phantom-green transition-colors" />
-                <span className="text-[10px] font-mono text-muted-foreground">
+                <span className="w-3.5 h-3.5 rounded-sm border border-muted-foreground/40 peer-checked:bg-phantom-green peer-checked:border-phantom-green transition-colors" />
+                <span className="text-sm font-mono text-muted-foreground">
                   Deep Think
                 </span>
               </label>

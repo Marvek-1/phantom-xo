@@ -98,7 +98,6 @@ export function CorridorDetailSidebar({ corridor, onClose }: Props) {
     setLoading(true);
     const cid = corridor.id;
 
-    // Load DB data
     const dbPromise = Promise.all([
       supabase
         .from("temporal_flows")
@@ -116,7 +115,6 @@ export function CorridorDetailSidebar({ corridor, onClose }: Props) {
         .order("monthly_avg_flow", { ascending: false }),
     ]);
 
-    // Load formal counterpart from GeoJSON
     const formalPromise = fetch("/data/corridors_paired.geojson")
       .then((r) => r.json())
       .then((geo) => {
@@ -153,44 +151,44 @@ export function CorridorDetailSidebar({ corridor, onClose }: Props) {
   const riskClass = RISK_BADGE[corridor.risk] ?? RISK_BADGE.MEDIUM;
 
   return (
-    <div className="absolute top-0 left-0 bottom-0 z-20 w-[380px] bg-card/95 border-r border-border backdrop-blur-md flex flex-col animate-fade-in-up overflow-hidden">
+    <div className="absolute top-0 left-0 bottom-0 z-20 w-[420px] bg-card/95 border-r border-border backdrop-blur-md flex flex-col animate-fade-in-up overflow-hidden">
       {/* Header */}
-      <div className="px-4 py-3 border-b border-border flex items-start justify-between gap-2">
+      <div className="px-4 py-3.5 border-b border-border flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded border ${riskClass}`}>
+          <div className="flex items-center gap-2 mb-1.5">
+            <span className={`text-xs font-mono px-2 py-1 rounded border ${riskClass}`}>
               {corridor.risk}
             </span>
-            <span className="text-[9px] font-mono text-muted-foreground">{corridor.id}</span>
+            <span className="text-xs font-mono text-muted-foreground">{corridor.id}</span>
           </div>
-          <h2 className="text-sm font-medium text-foreground leading-tight truncate">
+          <h2 className="text-base font-medium text-foreground leading-tight truncate">
             {corridor.name}
           </h2>
-          <div className="flex items-center gap-3 mt-1 text-[10px] font-mono text-muted-foreground">
+          <div className="flex items-center gap-3 mt-1.5 text-sm font-mono text-muted-foreground">
             <span>{corridor.km} km</span>
             <span>{corridor.mode}</span>
           </div>
         </div>
         <button
           onClick={onClose}
-          className="p-1 rounded hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
+          className="p-1.5 rounded hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
         >
-          <X className="w-4 h-4" />
+          <X className="w-5 h-5" />
         </button>
       </div>
 
       {/* Coverage gap card */}
       {formal && (
-        <div className="mx-4 mt-2.5 p-2.5 rounded-md border border-border bg-muted/10">
+        <div className="mx-4 mt-3 p-3 rounded-md border border-border bg-muted/10">
           <div className="flex items-center gap-2 mb-2">
-            <ShieldOff className="w-3.5 h-3.5 text-phantom-red" />
-            <span className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider">
+            <ShieldOff className="w-4 h-4 text-phantom-red" />
+            <span className="text-xs font-mono text-muted-foreground uppercase tracking-wider">
               Formal vs Phantom
             </span>
           </div>
           <div className="flex items-center gap-3 mb-2">
             <div className="flex-1">
-              <div className="h-2 rounded-full bg-muted/30 overflow-hidden">
+              <div className="h-2.5 rounded-full bg-muted/30 overflow-hidden">
                 <div
                   className="h-full rounded-full transition-all"
                   style={{
@@ -200,21 +198,21 @@ export function CorridorDetailSidebar({ corridor, onClose }: Props) {
                 />
               </div>
             </div>
-            <span className="text-sm font-mono text-foreground tabular-nums font-semibold">
+            <span className="text-base font-mono text-foreground tabular-nums font-semibold">
               {formal.coveragePct}%
             </span>
           </div>
           <div className="flex items-center gap-2 mb-1">
-            <Shield className="w-3 h-3 text-[hsl(217_91%_60%)]" />
-            <span className="text-[10px] font-mono text-foreground/80 truncate">{formal.name}</span>
+            <Shield className="w-3.5 h-3.5 text-[hsl(217_91%_60%)]" />
+            <span className="text-sm font-mono text-foreground/80 truncate">{formal.name}</span>
           </div>
-          <div className="flex gap-3 text-[9px] font-mono text-muted-foreground mt-1">
+          <div className="flex gap-3 text-xs font-mono text-muted-foreground mt-1.5">
             <span>Customs {formal.customs ? "✓" : "✗"}</span>
             <span>Immigration {formal.immigration ? "✓" : "✗"}</span>
             <span>FMP {formal.iomFmp ? "✓" : "✗"}</span>
           </div>
           {formal.gapNote && (
-            <p className="text-[9px] font-mono text-phantom-amber/80 mt-1.5 leading-relaxed">
+            <p className="text-xs font-mono text-phantom-amber/80 mt-2 leading-relaxed">
               {formal.gapNote}
             </p>
           )}
@@ -222,40 +220,40 @@ export function CorridorDetailSidebar({ corridor, onClose }: Props) {
       )}
 
       {/* Stats strip */}
-      <div className="px-4 py-2.5 border-b border-border grid grid-cols-3 gap-2 mt-1">
+      <div className="px-4 py-3 border-b border-border grid grid-cols-3 gap-2 mt-1">
         <div>
-          <p className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider">Total Flow</p>
-          <p className="text-base font-mono text-foreground tabular-nums">
+          <p className="text-xs font-mono text-muted-foreground uppercase tracking-wider">Total Flow</p>
+          <p className="text-lg font-mono text-foreground tabular-nums">
             {totalFlow >= 1000 ? `${(totalFlow / 1000).toFixed(0)}k` : totalFlow}
           </p>
         </div>
         <div>
-          <p className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider">Peak</p>
-          <p className="text-base font-mono text-phantom-amber tabular-nums">
+          <p className="text-xs font-mono text-muted-foreground uppercase tracking-wider">Peak</p>
+          <p className="text-lg font-mono text-phantom-amber tabular-nums">
             {peakFlow >= 1000 ? `${(peakFlow / 1000).toFixed(0)}k` : peakFlow}
           </p>
         </div>
         <div>
-          <p className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider">Records</p>
-          <p className="text-base font-mono text-foreground tabular-nums">{flows.length}</p>
+          <p className="text-xs font-mono text-muted-foreground uppercase tracking-wider">Records</p>
+          <p className="text-lg font-mono text-foreground tabular-nums">{flows.length}</p>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="px-4 py-1.5 border-b border-border flex gap-1">
+      <div className="px-4 py-2 border-b border-border flex gap-1">
         {(["flows", "events", "crossings"] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`px-2.5 py-1 text-[10px] font-mono rounded transition-colors ${
+            className={`px-3 py-1.5 text-sm font-mono rounded transition-colors ${
               tab === t
                 ? "bg-primary/15 text-primary"
                 : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
             }`}
           >
-            {t === "flows" && <TrendingUp className="w-3 h-3 inline mr-1" />}
-            {t === "events" && <AlertTriangle className="w-3 h-3 inline mr-1" />}
-            {t === "crossings" && <MapPin className="w-3 h-3 inline mr-1" />}
+            {t === "flows" && <TrendingUp className="w-3.5 h-3.5 inline mr-1" />}
+            {t === "events" && <AlertTriangle className="w-3.5 h-3.5 inline mr-1" />}
+            {t === "crossings" && <MapPin className="w-3.5 h-3.5 inline mr-1" />}
             {t.charAt(0).toUpperCase() + t.slice(1)}
             <span className="ml-1 text-muted-foreground tabular-nums">
               {t === "flows" ? flows.length : t === "events" ? events.length : crossings.length}
@@ -265,17 +263,17 @@ export function CorridorDetailSidebar({ corridor, onClose }: Props) {
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto px-4 py-2 space-y-1.5">
+      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
         {loading && (
           <div className="flex items-center justify-center py-8">
-            <div className="w-5 h-5 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+            <div className="w-6 h-6 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
           </div>
         )}
 
         {!loading && tab === "flows" && (
           <>
             {flows.length > 0 && (
-              <div className="mb-3 p-2 bg-muted/20 rounded border border-border">
+              <div className="mb-3 p-2.5 bg-muted/20 rounded border border-border">
                 <div className="flex items-end gap-px h-16">
                   {flows.map((f) => {
                     const h = peakFlow > 0 ? (f.flow_count / peakFlow) * 100 : 0;
@@ -292,7 +290,7 @@ export function CorridorDetailSidebar({ corridor, onClose }: Props) {
                     );
                   })}
                 </div>
-                <div className="flex justify-between mt-1 text-[8px] font-mono text-muted-foreground">
+                <div className="flex justify-between mt-1.5 text-xs font-mono text-muted-foreground">
                   <span>{flows[0]?.period_start?.slice(0, 7)}</span>
                   <span>{flows[flows.length - 1]?.period_start?.slice(0, 7)}</span>
                 </div>
@@ -300,28 +298,28 @@ export function CorridorDetailSidebar({ corridor, onClose }: Props) {
             )}
 
             {flows.map((f) => (
-              <div key={f.id} className="p-2 rounded border border-border bg-muted/10 hover:bg-muted/20 transition-colors">
-                <div className="flex items-center justify-between mb-0.5">
-                  <span className="text-[10px] font-mono text-muted-foreground">
-                    <Calendar className="w-3 h-3 inline mr-1" />
+              <div key={f.id} className="p-2.5 rounded border border-border bg-muted/10 hover:bg-muted/20 transition-colors">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-sm font-mono text-muted-foreground">
+                    <Calendar className="w-3.5 h-3.5 inline mr-1" />
                     {f.period_start?.slice(0, 10)}
-                    <ArrowRight className="w-3 h-3 inline mx-1" />
+                    <ArrowRight className="w-3.5 h-3.5 inline mx-1" />
                     {f.period_end?.slice(0, 10)}
                   </span>
-                  <span className="text-[10px] font-mono text-phantom-green tabular-nums font-medium">
+                  <span className="text-sm font-mono text-phantom-green tabular-nums font-medium">
                     {f.flow_count?.toLocaleString()}
                   </span>
                 </div>
-                <div className="text-[9px] font-mono text-muted-foreground/80">
+                <div className="text-xs font-mono text-muted-foreground/80">
                   {f.flow_direction}
                 </div>
                 {f.notes && (
-                  <p className="text-[9px] text-muted-foreground mt-0.5 leading-relaxed">{f.notes}</p>
+                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{f.notes}</p>
                 )}
               </div>
             ))}
             {flows.length === 0 && (
-              <p className="text-[10px] font-mono text-muted-foreground py-6 text-center">
+              <p className="text-sm font-mono text-muted-foreground py-6 text-center">
                 No temporal flow data for this corridor
               </p>
             )}
@@ -331,26 +329,26 @@ export function CorridorDetailSidebar({ corridor, onClose }: Props) {
         {!loading && tab === "events" && (
           <>
             {events.map((e) => (
-              <div key={e.id} className="p-2 rounded border border-border bg-muted/10 hover:bg-muted/20 transition-colors">
-                <div className="flex items-center justify-between mb-0.5">
-                  <span className="text-[10px] font-mono text-muted-foreground">
+              <div key={e.id} className="p-2.5 rounded border border-border bg-muted/10 hover:bg-muted/20 transition-colors">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-sm font-mono text-muted-foreground">
                     {e.event_date}
                   </span>
-                  <span className={`text-[9px] font-mono ${EVENT_COLORS[e.event_type] ?? "text-muted-foreground"}`}>
+                  <span className={`text-xs font-mono ${EVENT_COLORS[e.event_type] ?? "text-muted-foreground"}`}>
                     {e.event_type?.replace(/_/g, " ")}
                   </span>
                 </div>
-                <p className="text-[10px] text-foreground/90 leading-relaxed">{e.description}</p>
+                <p className="text-sm text-foreground/90 leading-relaxed">{e.description}</p>
                 {e.flow_impact && (
-                  <span className="inline-block mt-1 text-[9px] font-mono text-phantom-amber">
+                  <span className="inline-block mt-1 text-xs font-mono text-phantom-amber">
                     {IMPACT_ICONS[e.flow_impact] ?? ""} {e.flow_impact?.replace(/_/g, " ")}
                   </span>
                 )}
-                <p className="text-[8px] font-mono text-muted-foreground/60 mt-0.5">{e.source}</p>
+                <p className="text-xs font-mono text-muted-foreground/60 mt-1">{e.source}</p>
               </div>
             ))}
             {events.length === 0 && (
-              <p className="text-[10px] font-mono text-muted-foreground py-6 text-center">
+              <p className="text-sm font-mono text-muted-foreground py-6 text-center">
                 No temporal events for this corridor
               </p>
             )}
@@ -360,11 +358,11 @@ export function CorridorDetailSidebar({ corridor, onClose }: Props) {
         {!loading && tab === "crossings" && (
           <>
             {crossings.map((xp) => (
-              <div key={xp.id} className="p-2 rounded border border-border bg-muted/10 hover:bg-muted/20 transition-colors">
-                <div className="flex items-center justify-between mb-0.5">
-                  <span className="text-[11px] font-medium text-foreground">{xp.name}</span>
+              <div key={xp.id} className="p-2.5 rounded border border-border bg-muted/10 hover:bg-muted/20 transition-colors">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-sm font-medium text-foreground">{xp.name}</span>
                   <span
-                    className={`text-[9px] font-mono px-1.5 py-0.5 rounded ${
+                    className={`text-xs font-mono px-2 py-0.5 rounded ${
                       xp.status === "active"
                         ? "bg-primary/15 text-phantom-teal"
                         : xp.status === "partially_restricted"
@@ -375,13 +373,13 @@ export function CorridorDetailSidebar({ corridor, onClose }: Props) {
                     {xp.status?.replace(/_/g, " ")}
                   </span>
                 </div>
-                <div className="text-[9px] font-mono text-muted-foreground mb-1">
+                <div className="text-xs font-mono text-muted-foreground mb-1.5">
                   {xp.country_a} ↔ {xp.country_b}
                   {xp.iom_fmp_active && (
                     <span className="ml-2 text-phantom-blue">● IOM FMP</span>
                   )}
                 </div>
-                <div className="grid grid-cols-2 gap-2 text-[9px] font-mono">
+                <div className="grid grid-cols-2 gap-2 text-xs font-mono">
                   <div>
                     <span className="text-muted-foreground">Avg/mo: </span>
                     <span className="text-foreground tabular-nums">
@@ -396,7 +394,7 @@ export function CorridorDetailSidebar({ corridor, onClose }: Props) {
                   </div>
                 </div>
                 {xp.closure_periods && (
-                  <p className="text-[8px] font-mono text-phantom-red/80 mt-1">
+                  <p className="text-xs font-mono text-phantom-red/80 mt-1.5">
                     Closures: {xp.closure_periods}
                   </p>
                 )}
