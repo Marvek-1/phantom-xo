@@ -1,36 +1,40 @@
 
 
-# Replace Dense GeoJSON + Fix Pulse Crash
+# Smooth Corridor Rendering — Replace Polyline Segments with Cesium CorridorGraphics
 
-## Changes
+## Problem
+The current approach draws corridors as batches of 8-segment `polyline` entities. Each batch gets one flat color, creating visible seams and hard color jumps between segments — the "broken color lines" effect visible in the screenshot.
 
-### 1. Copy dense GeoJSON data file
-Copy `user-uploads://phantom_formal_paired_dense.geojson` → `public/data/corridors_paired.geojson`. The dense file has 73–653 points per corridor (vs 3–15 currently), so lines will follow real terrain. The `densifyLine()` function will pass through since coords already exceed the target count.
+## Solution
+Replace `polyline` entities with Cesium `CorridorGraphics` (aka ribbon/strip geometry). `CorridorGraphics` takes an array of positions and a `width` in **meters** (not pixels), producing a smooth, terrain-following filled band with naturally rounded edges and no seams.
 
-### 2. Fix Cesium ellipse pulse crash (`drawAllCorridors.ts`)
-**Root cause**: `drawPhantomPoe()` at line 637 creates two separate `CallbackProperty` instances via `makePulse()`. Even though they share closure variables, Cesium can call them at slightly different frame boundaries, producing different radius values → `semiMinorAxis > semiMajorAxis` → crash.
+For the gradient effect, group coordinates into larger color-similar batches (sharing endpoint positions to prevent gaps), and render each as a `corridor` entity instead of a `polyline`.
 
-**Fix**: Use a single shared `CallbackProperty` instance for both axes, and add `Math.max(1, ...)` guard with `Math.abs()` on the sin wave to prevent any edge case:
+```text
+BEFORE:  polyline batch 1 ][  polyline batch 2 ][  polyline batch 3
+         visible seams, hard color jumps, pixel-width lines
 
-```typescript
-const pulse = new Cesium.CallbackProperty(() => {
-  return Math.max(1, 3000 + Math.abs(Math.sin(Date.now() * 0.003)) * 1500);
-}, false);
-
-ellipse: {
-  semiMinorAxis: pulse,
-  semiMajorAxis: pulse,  // same instance = always equal
-  ...
-}
+AFTER:   ═══════════════════════════════════════════════════════
+         smooth corridor ribbon, overlapping endpoints, meter-width
 ```
 
-### 3. No other code changes needed
-The renderer already reads `corridors_paired.geojson` and handles all `route_type` values. Dense coordinates just flow through existing drawing functions.
+## Changes in `src/hooks/cesium/drawAllCorridors.ts`
 
-## Files
+1. **Replace gradient band polylines with `corridor` entities**:
+   - Change `polyline` → `corridor` using `CorridorGraphics` with `width: 8000` (8km ribbon — visible at continental zoom)
+   - Each batch shares its last position with the next batch's first position (overlap-by-one) to eliminate gaps
+   - Increase batch size from 8 to 20 segments for smoother color transitions and fewer entities
 
-| File | Action |
+2. **Replace glow polylines with wider corridor entities**:
+   - Same approach but `width: 16000` and lower alpha for the halo effect
+
+3. **Keep flowing dash and clickable spine as polylines** (they don't need smooth edges — they're thin overlays)
+
+4. **Switch from pixel width to meter width** for the band/glow layers only. This makes corridors scale naturally with zoom level — wide ribbons at high altitude, detailed paths when zoomed in.
+
+## File changes
+
+| File | Change |
 |---|---|
-| `public/data/corridors_paired.geojson` | Replace with dense upload |
-| `src/hooks/cesium/drawAllCorridors.ts` | Fix pulse — single CallbackProperty + Math.abs guard |
+| `src/hooks/cesium/drawAllCorridors.ts` | In `drawPhantomCorridor()`: replace band+glow `polyline` entities with `corridor` entities, increase batch to 20, overlap endpoints |
 
