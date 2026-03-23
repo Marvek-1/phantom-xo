@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { X, MapPin, Calendar, TrendingUp, AlertTriangle, ArrowRight } from "lucide-react";
+import { X, MapPin, Calendar, TrendingUp, AlertTriangle, ArrowRight, Shield, ShieldOff } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 interface CorridorMeta {
@@ -43,6 +43,16 @@ interface CrossingPoint {
   closure_periods: string | null;
 }
 
+interface FormalCounterpart {
+  name: string;
+  coveragePct: number;
+  gapNote: string;
+  monitoring: string;
+  customs: boolean;
+  immigration: boolean;
+  iomFmp: boolean;
+}
+
 interface Props {
   corridor: CorridorMeta;
   onClose: () => void;
@@ -80,6 +90,7 @@ export function CorridorDetailSidebar({ corridor, onClose }: Props) {
   const [flows, setFlows] = useState<TemporalFlow[]>([]);
   const [events, setEvents] = useState<TemporalEvent[]>([]);
   const [crossings, setCrossings] = useState<CrossingPoint[]>([]);
+  const [formal, setFormal] = useState<FormalCounterpart | null>(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<"flows" | "events" | "crossings">("flows");
 
@@ -87,7 +98,8 @@ export function CorridorDetailSidebar({ corridor, onClose }: Props) {
     setLoading(true);
     const cid = corridor.id;
 
-    Promise.all([
+    // Load DB data
+    const dbPromise = Promise.all([
       supabase
         .from("temporal_flows")
         .select("*")
@@ -102,10 +114,36 @@ export function CorridorDetailSidebar({ corridor, onClose }: Props) {
         .from("real_crossing_points")
         .select("*")
         .order("monthly_avg_flow", { ascending: false }),
-    ]).then(([flowsRes, eventsRes, xpRes]) => {
+    ]);
+
+    // Load formal counterpart from GeoJSON
+    const formalPromise = fetch("/data/corridors_paired.geojson")
+      .then((r) => r.json())
+      .then((geo) => {
+        const formalFeature = geo.features.find(
+          (f: any) => f.properties.route_type === "FORMAL" && f.properties.phantom_id === cid
+        );
+        if (formalFeature) {
+          const p = formalFeature.properties;
+          return {
+            name: p.name,
+            coveragePct: p.coverage_pct ?? 0,
+            gapNote: p.gap_note ?? "",
+            monitoring: p.monitoring ?? "unknown",
+            customs: !!p.customs,
+            immigration: !!p.immigration,
+            iomFmp: !!p.iom_fmp,
+          } as FormalCounterpart;
+        }
+        return null;
+      })
+      .catch(() => null);
+
+    Promise.all([dbPromise, formalPromise]).then(([[flowsRes, eventsRes, xpRes], formalData]) => {
       setFlows((flowsRes.data as TemporalFlow[]) ?? []);
       setEvents((eventsRes.data as TemporalEvent[]) ?? []);
       setCrossings((xpRes.data as CrossingPoint[]) ?? []);
+      setFormal(formalData);
       setLoading(false);
     });
   }, [corridor.id]);
@@ -141,8 +179,50 @@ export function CorridorDetailSidebar({ corridor, onClose }: Props) {
         </button>
       </div>
 
+      {/* Coverage gap card */}
+      {formal && (
+        <div className="mx-4 mt-2.5 p-2.5 rounded-md border border-border bg-muted/10">
+          <div className="flex items-center gap-2 mb-2">
+            <ShieldOff className="w-3.5 h-3.5 text-phantom-red" />
+            <span className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider">
+              Formal vs Phantom
+            </span>
+          </div>
+          <div className="flex items-center gap-3 mb-2">
+            <div className="flex-1">
+              <div className="h-2 rounded-full bg-muted/30 overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all"
+                  style={{
+                    width: `${formal.coveragePct}%`,
+                    backgroundColor: "hsl(217 91% 60%)",
+                  }}
+                />
+              </div>
+            </div>
+            <span className="text-sm font-mono text-foreground tabular-nums font-semibold">
+              {formal.coveragePct}%
+            </span>
+          </div>
+          <div className="flex items-center gap-2 mb-1">
+            <Shield className="w-3 h-3 text-[hsl(217_91%_60%)]" />
+            <span className="text-[10px] font-mono text-foreground/80 truncate">{formal.name}</span>
+          </div>
+          <div className="flex gap-3 text-[9px] font-mono text-muted-foreground mt-1">
+            <span>Customs {formal.customs ? "✓" : "✗"}</span>
+            <span>Immigration {formal.immigration ? "✓" : "✗"}</span>
+            <span>FMP {formal.iomFmp ? "✓" : "✗"}</span>
+          </div>
+          {formal.gapNote && (
+            <p className="text-[9px] font-mono text-phantom-amber/80 mt-1.5 leading-relaxed">
+              {formal.gapNote}
+            </p>
+          )}
+        </div>
+      )}
+
       {/* Stats strip */}
-      <div className="px-4 py-2.5 border-b border-border grid grid-cols-3 gap-2">
+      <div className="px-4 py-2.5 border-b border-border grid grid-cols-3 gap-2 mt-1">
         <div>
           <p className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider">Total Flow</p>
           <p className="text-base font-mono text-foreground tabular-nums">
@@ -194,7 +274,6 @@ export function CorridorDetailSidebar({ corridor, onClose }: Props) {
 
         {!loading && tab === "flows" && (
           <>
-            {/* Mini bar chart */}
             {flows.length > 0 && (
               <div className="mb-3 p-2 bg-muted/20 rounded border border-border">
                 <div className="flex items-end gap-px h-16">

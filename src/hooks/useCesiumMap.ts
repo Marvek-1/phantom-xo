@@ -9,23 +9,11 @@ import { drawRadar } from "./cesium/drawRadar";
 import { drawAnalysis } from "./cesium/drawAnalysis";
 import { drawOfficialPOEs } from "./cesium/drawOfficialPOEs";
 import { drawGapZones } from "./cesium/drawGapZones";
-import { drawAllCorridors } from "./cesium/drawAllCorridors";
-import { drawNodes } from "./cesium/drawNodes";
+import { drawAllCorridors, type CorridorMeta } from "./cesium/drawAllCorridors";
 import { drawEvidenceLayer, toggleEvidenceEntities } from "./cesium/drawEvidenceLayer";
 import { drawBorders } from "./cesium/drawBorders";
-import { drawCrossingPoints, type CrossingPointData } from "./cesium/drawCrossingPoints";
 import { createCascadeEngine, type CascadeState } from "./cesium/cascadeEngine";
 import type { EvidenceSignal } from "./cesium/drawEvidenceLayer";
-
-interface CorridorMeta {
-  id: string;
-  name: string;
-  risk: string;
-  km: number;
-  mode: string;
-  center: [number, number];
-  zoom: number;
-}
 
 export function useCesiumMap(containerRef: React.RefObject<HTMLDivElement | null>) {
   const viewerRef = useRef<Cesium.Viewer | null>(null);
@@ -36,12 +24,10 @@ export function useCesiumMap(containerRef: React.RefObject<HTMLDivElement | null
   const [officialPOEsVisible, setOfficialPOEsVisible] = useState(true);
   const poesLoadedRef = useRef(false);
 
-  // New visualization state
   const [corridorsMeta, setCorridorsMeta] = useState<CorridorMeta[]>([]);
   const [corridorsLoaded, setCorridorsLoaded] = useState(false);
   const [evidenceVisible, setEvidenceVisible] = useState(false);
   const [cascadeState, setCascadeState] = useState<CascadeState | null>(null);
-  const [crossingPoints, setCrossingPoints] = useState<CrossingPointData[]>([]);
   const [selectedCorridorId, setSelectedCorridorId] = useState<string | null>(null);
   const evidenceIdsRef = useRef<string[]>([]);
   const evidenceDataRef = useRef<EvidenceSignal[]>([]);
@@ -181,27 +167,23 @@ export function useCesiumMap(containerRef: React.RefObject<HTMLDivElement | null
     await drawGapZones(ctx, corridorDefId);
   }, [getDrawContext]);
 
-  // Load all corridors + nodes + evidence layer
+  // Unified load: corridors_paired.geojson renders PHANTOM + FORMAL + NODEs + GATES + FMPs + PHANTOM_POEs
   const loadAllCorridors = useCallback(async () => {
     if (corridorsLoaded) return;
     const ctx = getDrawContext();
     if (!ctx) return;
 
     try {
-      const [meta, , , xpData] = await Promise.all([
+      const [meta] = await Promise.all([
         drawAllCorridors(ctx),
-        drawNodes(ctx),
         drawBorders(ctx),
-        drawCrossingPoints(ctx),
       ]);
       setCorridorsMeta(meta);
-      setCrossingPoints(xpData);
 
       const { data, entityIds } = await drawEvidenceLayer(ctx);
       evidenceIdsRef.current = entityIds;
       evidenceDataRef.current = data;
 
-      // Create cascade engine
       const viewer = viewerRef.current;
       if (viewer) {
         cascadeEngineRef.current = createCascadeEngine(viewer, data, entityIds);
@@ -213,7 +195,6 @@ export function useCesiumMap(containerRef: React.RefObject<HTMLDivElement | null
     }
   }, [corridorsLoaded, getDrawContext]);
 
-  // Toggle evidence visibility
   const toggleEvidence = useCallback(() => {
     const viewer = viewerRef.current;
     if (!viewer) return;
@@ -222,7 +203,6 @@ export function useCesiumMap(containerRef: React.RefObject<HTMLDivElement | null
     setEvidenceVisible(newVisible);
   }, [evidenceVisible]);
 
-  // Cascade controls
   const startCascade = useCallback((corridorId: string) => {
     cascadeEngineRef.current?.start(corridorId, (s) => {
       setCascadeState({ ...s });
@@ -258,7 +238,6 @@ export function useCesiumMap(containerRef: React.RefObject<HTMLDivElement | null
     }
   }, [flyTo, getDrawContext]);
 
-  // Load official POEs + all corridors when map is ready
   useEffect(() => {
     if (mapReady && officialPOEsVisible) {
       loadOfficialPOEs();
@@ -281,7 +260,6 @@ export function useCesiumMap(containerRef: React.RefObject<HTMLDivElement | null
     clearEntities,
     handleMapQuery,
     loadGapZones,
-    // Visualization
     corridorsMeta,
     corridorsLoaded,
     evidenceVisible,
@@ -289,7 +267,6 @@ export function useCesiumMap(containerRef: React.RefObject<HTMLDivElement | null
     cascadeState,
     startCascade,
     stopCascade,
-    crossingPoints,
     selectedCorridorId,
     setSelectedCorridorId,
   };
