@@ -56,7 +56,9 @@ export async function drawBorders(ctx: CesiumDrawContext): Promise<string[]> {
       }
     }
     console.log(`[Cesium] Drew ${idx} border segments`);
+    return ctx.entityIds.slice(startLen);
   } catch (err) {
     console.warn("[Cesium] Failed to load admin boundaries:", err);
+    return [];
   }
 }

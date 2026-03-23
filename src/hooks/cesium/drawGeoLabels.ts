@@ -182,7 +182,9 @@ async function drawCityLabels(ctx: CesiumDrawContext): Promise<void> {
 
 // ── Main export ───────────────────────────────────────────────────────
 
-export async function drawGeoLabels(ctx: CesiumDrawContext): Promise<void> {
+export async function drawGeoLabels(ctx: CesiumDrawContext): Promise<string[]> {
+  const startLen = ctx.entityIds.length;
   drawCountryLabels(ctx);
   await Promise.all([drawAdmin1Labels(ctx), drawCityLabels(ctx)]);
+  return ctx.entityIds.slice(startLen);
 }
