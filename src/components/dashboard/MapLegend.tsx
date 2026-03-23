@@ -23,6 +23,14 @@ interface MapLegendProps {
   onToggleLayer?: (layer: string) => void;
 }
 
+const LAYER_DEFS = [
+  { key: "corridors", label: "Corridors", color: "hsl(var(--phantom-green))" },
+  { key: "borders", label: "Borders", color: "#FFFFFF" },
+  { key: "labels", label: "Geo Labels", color: "#9CA3AF" },
+  { key: "officialPOEs", label: "Official POEs", color: "hsl(217, 91%, 60%)" },
+  { key: "evidence", label: "Evidence Signals", color: "hsl(var(--phantom-amber))" },
+];
+
 const MapLegend = ({
   officialPOEsVisible,
   onTogglePOEs,
@@ -33,8 +41,11 @@ const MapLegend = ({
   cascadeActive = false,
   onStartCascade,
   onStopCascade,
+  layerVisibility = {},
+  onToggleLayer,
 }: MapLegendProps) => {
   const [expanded, setExpanded] = useState(true);
+  const [layersExpanded, setLayersExpanded] = useState(true);
   const [cascadeCorridorId, setCascadeCorridorId] = useState("");
 
   return (
