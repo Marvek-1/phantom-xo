@@ -717,46 +717,28 @@ function drawPhantomPoe(ctx: CesiumDrawContext, feature: any) {
   const [lng, lat] = feature.geometry.coordinates as [number, number];
   const poeId = props.id || `ppoe-${lng}-${lat}`;
   const name = props.name || "Phantom POE";
-  const gold = Cesium.Color.fromCssColorString("#FFD700");
 
-  // Pulsing outer ring — single shared CallbackProperty prevents axis mismatch crash
-  const pulse = new Cesium.CallbackProperty(() => {
-    return Math.max(1, 3000 + Math.abs(Math.sin(Date.now() * 0.003)) * 1500);
-  }, false);
-  ctx.addEntity(`ppoe-${poeId}-pulse`, {
-    position: Cesium.Cartesian3.fromDegrees(lng, lat),
-    ellipse: {
-      semiMinorAxis: pulse,
-      semiMajorAxis: pulse,
-      material: gold.withAlpha(0.1),
-      outline: true,
-      outlineColor: gold.withAlpha(0.3),
-      outlineWidth: 1,
-      heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
-    },
-  });
-
-  // Core gold point
+  // Static white diamond marker — no pulsing ellipse, no semiMajorAxis crash
   ctx.addEntity(`ppoe-${poeId}`, {
     position: Cesium.Cartesian3.fromDegrees(lng, lat),
     point: {
-      pixelSize: 16,
-      color: gold.withAlpha(0.95),
-      outlineColor: gold.withAlpha(0.4),
-      outlineWidth: 4,
+      pixelSize: 8,
+      color: Cesium.Color.WHITE.withAlpha(0.95),
+      outlineColor: Cesium.Color.fromCssColorString("#FFD700").withAlpha(0.6),
+      outlineWidth: 2,
       disableDepthTestDistance: Number.POSITIVE_INFINITY,
       heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
     },
     label: {
-      text: name,
-      font: 'bold 10px "IBM Plex Mono", monospace',
-      fillColor: gold,
+      text: `◇ ${name}`,
+      font: 'bold 9px "IBM Plex Mono", monospace',
+      fillColor: Cesium.Color.WHITE.withAlpha(0.9),
       outlineColor: Cesium.Color.fromCssColorString(T.bg),
       outlineWidth: 3,
       style: Cesium.LabelStyle.FILL_AND_OUTLINE,
       verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
       horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
-      pixelOffset: new Cesium.Cartesian2(0, -20),
+      pixelOffset: new Cesium.Cartesian2(0, -12),
       disableDepthTestDistance: Number.POSITIVE_INFINITY,
       scaleByDistance: new Cesium.NearFarScalar(1e4, 1.0, 3e6, 0.4),
       distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 2_500_000),

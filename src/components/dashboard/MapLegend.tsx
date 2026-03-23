@@ -48,77 +48,39 @@ const MapLegend = ({
 
         {expanded && (
           <div className="px-3 pb-2.5 space-y-1.5 border-t border-border pt-2">
-            {/* MONITORED section */}
-            <p className="text-[9px] font-mono text-[hsl(217,91%,60%)] uppercase tracking-wider font-semibold">
-              Monitored
+            {/* UNMONITORED — Phantom corridors */}
+            <p className="text-[9px] font-mono text-[hsl(var(--phantom-amber))] uppercase tracking-wider font-semibold">
+              Phantom Corridors
             </p>
             <LegendItem
-              label="Formal Route"
-              swatch={<FormalLineSwatch />}
+              label="Detected route — risk gradient"
+              swatch={<GradientBarSwatch />}
             />
             <LegendItem
-              label="Official Gate"
-              swatch={<GateSwatch />}
-            />
-            <LegendItem
-              label="IOM FMP"
-              swatch={<FmpSwatch />}
+              label="Phantom crossing point"
+              swatch={<PhantomPoeSwatch />}
             />
 
-            {/* UNMONITORED section */}
+            {/* MONITORED — Formal routes */}
             <div className="pt-1.5 mt-1 border-t border-border">
-              <p className="text-[9px] font-mono text-[hsl(var(--phantom-amber))] uppercase tracking-wider font-semibold mb-1">
-                Unmonitored
+              <p className="text-[9px] font-mono text-[hsl(217,91%,60%)] uppercase tracking-wider font-semibold mb-1">
+                Formal Routes
               </p>
               <LegendItem
-                label="Phantom Corridor"
-                swatch={<PhantomDashSwatch />}
+                label="Official route — monitored"
+                swatch={<FormalLineSwatch />}
               />
               <LegendItem
-                label="Phantom POE"
-                swatch={<PhantomPoeSwatch />}
+                label="Official gate"
+                swatch={<GateSwatch />}
               />
               <LegendItem
-                label="Gap Zone"
-                swatch={<GapZoneSwatch />}
+                label="IOM FMP"
+                swatch={<FmpSwatch />}
               />
             </div>
 
-            {/* Risk classes */}
-            <div className="pt-1.5 mt-1 border-t border-border">
-              <p className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider mb-1">
-                Risk Class
-              </p>
-              {[
-                { color: "#EF4444", label: "CRITICAL" },
-                { color: "#F97316", label: "HIGH" },
-                { color: "#EAB308", label: "MEDIUM" },
-              ].map((r) => (
-                <div key={r.label} className="flex items-center gap-2 text-[10px] font-mono text-foreground/80">
-                  <span className="w-5 h-0.5 rounded-full" style={{ backgroundColor: r.color }} />
-                  <span>{r.label}</span>
-                </div>
-              ))}
-            </div>
-
-            {/* Evidence sources */}
-            <div className="pt-1.5 mt-1 border-t border-border">
-              <p className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider mb-1">
-                Sources
-              </p>
-              {[
-                { color: "#EF4444", label: "ACLED" },
-                { color: "#3B82F6", label: "IOM-DTM" },
-                { color: "#22C55E", label: "DHIS2" },
-              ].map((s) => (
-                <div key={s.label} className="flex items-center gap-2 text-[10px] font-mono text-foreground/80">
-                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: s.color }} />
-                  <span>{s.label}</span>
-                </div>
-              ))}
-            </div>
-
-            {/* Coverage gap indicator */}
+            {/* Coverage gap */}
             {corridorsLoaded && (
               <div className="pt-1.5 mt-1 border-t border-border">
                 <p className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider mb-1.5">
@@ -137,7 +99,7 @@ const MapLegend = ({
                   />
                 </div>
                 <div className="flex justify-between mt-1">
-                  <span className="text-[8px] font-mono text-[hsl(217,91%,60%)]">29.4% seen</span>
+                  <span className="text-[8px] font-mono text-[hsl(217,91%,60%)]">29.4% monitored</span>
                   <span className="text-[8px] font-mono text-destructive">70.6% hidden</span>
                 </div>
                 <p className="text-[9px] font-mono text-muted-foreground tabular-nums mt-1">
@@ -228,6 +190,18 @@ function LegendItem({ label, swatch }: { label: string; swatch: React.ReactNode 
   );
 }
 
+/** Green → Yellow → Red gradient bar matching the corridor risk gradient */
+function GradientBarSwatch() {
+  return (
+    <div
+      className="w-5 h-[4px] rounded-full"
+      style={{
+        background: "linear-gradient(90deg, #22C55E 0%, #EAB308 50%, #EF4444 100%)",
+      }}
+    />
+  );
+}
+
 /** Solid blue line matching the formal route on the map */
 function FormalLineSwatch() {
   return (
@@ -235,24 +209,13 @@ function FormalLineSwatch() {
   );
 }
 
-/** Animated dashed line mimicking the phantom corridor flow */
-function PhantomDashSwatch() {
+/** White diamond with gold outline matching phantom POE */
+function PhantomPoeSwatch() {
   return (
-    <div className="relative w-5 h-[4px] overflow-hidden rounded-sm">
-      <div
-        className="absolute inset-0"
-        style={{
-          background: "repeating-linear-gradient(90deg, hsl(var(--phantom-green)) 0px, hsl(var(--phantom-green)) 3px, transparent 3px, transparent 6px)",
-          animation: "legendDashFlow 1.5s linear infinite",
-        }}
-      />
-      <style>{`
-        @keyframes legendDashFlow {
-          0% { transform: translateX(0); }
-          100% { transform: translateX(6px); }
-        }
-      `}</style>
-    </div>
+    <div
+      className="w-2 h-2 rotate-45 bg-white border"
+      style={{ borderColor: "#FFD700" }}
+    />
   );
 }
 
@@ -266,16 +229,6 @@ function GateSwatch() {
   );
 }
 
-/** Gold pulsing circle matching the phantom POE on map */
-function PhantomPoeSwatch() {
-  return (
-    <div className="relative w-3 h-3 flex items-center justify-center">
-      <div className="absolute inset-0 rounded-full animate-ping opacity-30" style={{ backgroundColor: "#FFD700" }} />
-      <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: "#FFD700" }} />
-    </div>
-  );
-}
-
 /** Cyan circle with outer ring matching IOM FMP flow ring */
 function FmpSwatch() {
   return (
@@ -283,19 +236,6 @@ function FmpSwatch() {
       <div className="absolute inset-0 rounded-full border" style={{ borderColor: "hsl(var(--phantom-teal))", opacity: 0.4 }} />
       <div className="w-2 h-2 rounded-full" style={{ backgroundColor: "hsl(var(--phantom-teal))" }} />
     </div>
-  );
-}
-
-/** Red semi-transparent zone matching gap zones */
-function GapZoneSwatch() {
-  return (
-    <div
-      className="w-5 h-2.5 rounded-sm border"
-      style={{
-        backgroundColor: "hsl(var(--phantom-red) / 0.2)",
-        borderColor: "hsl(var(--phantom-red) / 0.4)",
-      }}
-    />
   );
 }
 
