@@ -187,11 +187,17 @@ export function useCesiumMap(containerRef: React.RefObject<HTMLDivElement | null
     if (!ctx) return;
 
     try {
-      const [meta] = await Promise.all([
-        drawAllCorridors(ctx),
+      const corridorStartLen = ctx.entityIds.length;
+      const [meta, borderIds, labelIds] = await Promise.all([
+        drawAllCorridors(ctx).then((m) => {
+          corridorEntityIdsRef.current = ctx.entityIds.slice(corridorStartLen);
+          return m;
+        }),
         drawBorders(ctx),
         drawGeoLabels(ctx),
       ]);
+      borderIdsRef.current = borderIds;
+      labelIdsRef.current = labelIds;
       setCorridorsMeta(meta);
 
       const { data, entityIds } = await drawEvidenceLayer(ctx);
