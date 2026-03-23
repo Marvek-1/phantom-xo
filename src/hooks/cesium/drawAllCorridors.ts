@@ -362,12 +362,15 @@ function drawPhantomCorridor(ctx: CesiumDrawContext, feature: any) {
     coords.flatMap((c) => [c[0], c[1]])
   );
 
-  // ── LAYER 1: Gradient band — 14px wide, batched every 8 segments ──
-  const BATCH = 8;
+  // ── LAYER 1: Gradient ribbon — CorridorGraphics for smooth edges ──
+  // Batch every 20 segments, overlap-by-one to eliminate gaps
+  const BATCH = 20;
   for (let i = 0; i < n - 1; i += BATCH) {
-    const end = Math.min(i + BATCH + 1, n);
+    const end = Math.min(i + BATCH + 1, n); // +1 overlap
     const segCoords = coords.slice(i, end);
-    const t = i / (n - 1);
+    if (segCoords.length < 2) continue;
+
+    const t = (i + BATCH / 2) / (n - 1); // color at batch midpoint
     const hexColor = scoreToGradient(t, risk, score);
     const cesiumColor = Cesium.Color.fromCssColorString(hexColor);
 
@@ -375,23 +378,27 @@ function drawPhantomCorridor(ctx: CesiumDrawContext, feature: any) {
       segCoords.flatMap((c) => [c[0], c[1]])
     );
 
+    // Smooth filled ribbon — meter-based width, no pixel seams
     ctx.addEntity(`corr-${id}-band-${i}`, {
-      polyline: {
+      corridor: {
         positions,
-        clampToGround: true,
-        width: 14,
+        width: 8000,
         material: cesiumColor.withAlpha(0.92),
-        arcType: Cesium.ArcType.GEODESIC,
+        cornerType: Cesium.CornerType.MITERED,
+        height: 0,
+        outline: false,
       },
     });
 
+    // Glow halo — wider, translucent
     ctx.addEntity(`corr-${id}-glow-${i}`, {
-      polyline: {
+      corridor: {
         positions,
-        clampToGround: true,
-        width: 26,
-        material: cesiumColor.withAlpha(0.18),
-        arcType: Cesium.ArcType.GEODESIC,
+        width: 16000,
+        material: cesiumColor.withAlpha(0.15),
+        cornerType: Cesium.CornerType.MITERED,
+        height: 0,
+        outline: false,
       },
     });
   }
