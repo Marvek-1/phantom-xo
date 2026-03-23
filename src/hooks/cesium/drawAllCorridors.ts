@@ -405,9 +405,10 @@ function drawPhantomCorridor(ctx: CesiumDrawContext, feature: any) {
         color: Cesium.Color.WHITE.withAlpha(0.7),
         dashLength: 20,
         dashPattern: new Cesium.CallbackProperty(() => {
-          dashOffset = (dashOffset + 1) % 16;
+          dashOffset = (dashOffset + 0.3) % 16;
+          const shift = Math.floor(dashOffset);
           const base = 0xff00;
-          return ((base << dashOffset) | (base >>> (16 - dashOffset))) & 0xffff;
+          return ((base << shift) | (base >>> (16 - shift))) & 0xffff;
         }, false) as any,
       }),
       arcType: Cesium.ArcType.GEODESIC,
