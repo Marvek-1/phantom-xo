@@ -36,8 +36,8 @@ const MapLegend = ({
   const [cascadeCorridorId, setCascadeCorridorId] = useState("");
 
   return (
-    <div className="absolute bottom-4 right-4 z-10 animate-fade-in-up">
-      <div className="bg-card/90 border border-border rounded-lg backdrop-blur-sm overflow-hidden min-w-[195px] max-h-[70vh] overflow-y-auto">
+    <div className="absolute bottom-4 right-4 z-10 animate-fade-in">
+      <div className="bg-card/90 border border-border rounded-lg backdrop-blur-sm overflow-hidden min-w-[210px] max-h-[70vh] overflow-y-auto">
         <button
           onClick={() => setExpanded(!expanded)}
           className="w-full px-3 py-2 flex items-center justify-between text-[10px] font-mono text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors"
@@ -49,21 +49,39 @@ const MapLegend = ({
         {expanded && (
           <div className="px-3 pb-2.5 space-y-1.5 border-t border-border pt-2">
             {/* MONITORED section */}
-            <p className="text-[9px] font-mono text-[hsl(var(--phantom-blue))] uppercase tracking-wider font-semibold">
+            <p className="text-[9px] font-mono text-[hsl(217,91%,60%)] uppercase tracking-wider font-semibold">
               Monitored
             </p>
-            <LegendRow color="hsl(217 91% 60%)" shape="line-solid" label="Formal Route" />
-            <LegendRow color="hsl(217 91% 60%)" shape="diamond" label="Official Gate" />
-            <LegendRow color="hsl(var(--phantom-teal))" shape="circle" label="IOM FMP" />
+            <LegendItem
+              label="Formal Route"
+              swatch={<FormalLineSwatch />}
+            />
+            <LegendItem
+              label="Official Gate"
+              swatch={<GateSwatch />}
+            />
+            <LegendItem
+              label="IOM FMP"
+              swatch={<FmpSwatch />}
+            />
 
             {/* UNMONITORED section */}
             <div className="pt-1.5 mt-1 border-t border-border">
               <p className="text-[9px] font-mono text-[hsl(var(--phantom-amber))] uppercase tracking-wider font-semibold mb-1">
                 Unmonitored
               </p>
-              <LegendRow color="hsl(var(--phantom-green))" shape="dash" label="Phantom Corridor" />
-              <LegendRow color="hsl(48 100% 50%)" shape="circle-pulse" label="Phantom POE" />
-              <LegendRow color="hsl(var(--phantom-red))" shape="zone" label="Gap Zone" />
+              <LegendItem
+                label="Phantom Corridor"
+                swatch={<PhantomDashSwatch />}
+              />
+              <LegendItem
+                label="Phantom POE"
+                swatch={<PhantomPoeSwatch />}
+              />
+              <LegendItem
+                label="Gap Zone"
+                swatch={<GapZoneSwatch />}
+              />
             </div>
 
             {/* Risk classes */}
@@ -100,11 +118,30 @@ const MapLegend = ({
               ))}
             </div>
 
-            {/* Coverage stat */}
+            {/* Coverage gap indicator */}
             {corridorsLoaded && (
               <div className="pt-1.5 mt-1 border-t border-border">
-                <p className="text-[9px] font-mono text-muted-foreground tabular-nums">
-                  {corridorsMeta.length} corridors · avg coverage <span className="text-phantom-red font-semibold">29.4%</span>
+                <p className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider mb-1.5">
+                  Coverage Gap
+                </p>
+                <div className="flex h-2.5 rounded-full overflow-hidden border border-border">
+                  <div
+                    className="bg-[hsl(217,91%,60%)]"
+                    style={{ width: "29.4%" }}
+                    title="Formal coverage: 29.4%"
+                  />
+                  <div
+                    className="bg-destructive/60"
+                    style={{ width: "70.6%" }}
+                    title="Unmonitored: 70.6%"
+                  />
+                </div>
+                <div className="flex justify-between mt-1">
+                  <span className="text-[8px] font-mono text-[hsl(217,91%,60%)]">29.4% seen</span>
+                  <span className="text-[8px] font-mono text-destructive">70.6% hidden</span>
+                </div>
+                <p className="text-[9px] font-mono text-muted-foreground tabular-nums mt-1">
+                  {corridorsMeta.length} corridors
                 </p>
               </div>
             )}
@@ -116,7 +153,7 @@ const MapLegend = ({
                   type="checkbox"
                   checked={officialPOEsVisible}
                   onChange={(e) => onTogglePOEs(e.target.checked)}
-                  className="w-3 h-3 rounded border-border accent-[hsl(var(--phantom-blue))]"
+                  className="w-3 h-3 rounded border-border accent-[hsl(217,91%,60%)]"
                 />
                 <span>Show Official POEs</span>
               </label>
@@ -156,7 +193,7 @@ const MapLegend = ({
                   <button
                     onClick={() => cascadeCorridorId && onStartCascade(cascadeCorridorId)}
                     disabled={!cascadeCorridorId || cascadeActive}
-                    className="flex items-center gap-1 px-2 py-0.5 text-[9px] font-mono rounded bg-phantom-green/20 text-phantom-green hover:bg-phantom-green/30 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    className="flex items-center gap-1 px-2 py-0.5 text-[9px] font-mono rounded bg-[hsl(var(--phantom-green))]/20 text-[hsl(var(--phantom-green))] hover:bg-[hsl(var(--phantom-green))]/30 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                   >
                     <Play className="w-2.5 h-2.5" />
                     Play
@@ -164,7 +201,7 @@ const MapLegend = ({
                   {cascadeActive && onStopCascade && (
                     <button
                       onClick={onStopCascade}
-                      className="flex items-center gap-1 px-2 py-0.5 text-[9px] font-mono rounded bg-phantom-red/20 text-phantom-red hover:bg-phantom-red/30 transition-colors"
+                      className="flex items-center gap-1 px-2 py-0.5 text-[9px] font-mono rounded bg-destructive/20 text-destructive hover:bg-destructive/30 transition-colors"
                     >
                       <Square className="w-2.5 h-2.5" />
                       Stop
@@ -180,39 +217,86 @@ const MapLegend = ({
   );
 };
 
-function LegendRow({ color, shape, label }: { color: string; shape: string; label: string }) {
+/* ── Legend swatch components ── */
+
+function LegendItem({ label, swatch }: { label: string; swatch: React.ReactNode }) {
   return (
     <div className="flex items-center gap-2 text-[10px] font-mono text-foreground/80">
-      <LegendShape color={color} shape={shape} />
+      <div className="w-5 flex-shrink-0 flex items-center justify-center">{swatch}</div>
       <span>{label}</span>
     </div>
   );
 }
 
-function LegendShape({ color, shape }: { color: string; shape: string }) {
-  const base = "inline-block flex-shrink-0";
-  switch (shape) {
-    case "line-solid":
-      return <span className={`${base} w-5 h-0.5 rounded-full`} style={{ backgroundColor: color }} />;
-    case "dash":
-      return (
-        <span className={`${base} flex items-center gap-0.5`}>
-          {[0, 1, 2].map((i) => (
-            <span key={i} className="w-1 h-0.5 rounded-full" style={{ backgroundColor: color }} />
-          ))}
-        </span>
-      );
-    case "diamond":
-      return <span className={`${base} w-2.5 h-2.5 rotate-45`} style={{ backgroundColor: color }} />;
-    case "circle":
-      return <span className={`${base} w-2.5 h-2.5 rounded-full`} style={{ backgroundColor: color }} />;
-    case "circle-pulse":
-      return <span className={`${base} w-2.5 h-2.5 rounded-full animate-pulse`} style={{ backgroundColor: color }} />;
-    case "zone":
-      return <span className={`${base} w-5 h-2.5 rounded-sm`} style={{ backgroundColor: color, opacity: 0.25 }} />;
-    default:
-      return <span className={`${base} w-2.5 h-2.5 rounded-full`} style={{ backgroundColor: color }} />;
-  }
+/** Solid blue line matching the formal route on the map */
+function FormalLineSwatch() {
+  return (
+    <div className="w-5 h-[3px] rounded-full bg-[hsl(217,91%,60%)]" />
+  );
+}
+
+/** Animated dashed line mimicking the phantom corridor flow */
+function PhantomDashSwatch() {
+  return (
+    <div className="relative w-5 h-[4px] overflow-hidden rounded-sm">
+      <div
+        className="absolute inset-0"
+        style={{
+          background: "repeating-linear-gradient(90deg, hsl(var(--phantom-green)) 0px, hsl(var(--phantom-green)) 3px, transparent 3px, transparent 6px)",
+          animation: "legendDashFlow 1.5s linear infinite",
+        }}
+      />
+      <style>{`
+        @keyframes legendDashFlow {
+          0% { transform: translateX(0); }
+          100% { transform: translateX(6px); }
+        }
+      `}</style>
+    </div>
+  );
+}
+
+/** Blue square with white border — matching formal gate point */
+function GateSwatch() {
+  return (
+    <div
+      className="w-2.5 h-2.5 rotate-45 border border-white/60"
+      style={{ backgroundColor: "hsl(217, 91%, 60%)" }}
+    />
+  );
+}
+
+/** Gold pulsing circle matching the phantom POE on map */
+function PhantomPoeSwatch() {
+  return (
+    <div className="relative w-3 h-3 flex items-center justify-center">
+      <div className="absolute inset-0 rounded-full animate-ping opacity-30" style={{ backgroundColor: "#FFD700" }} />
+      <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: "#FFD700" }} />
+    </div>
+  );
+}
+
+/** Cyan circle with outer ring matching IOM FMP flow ring */
+function FmpSwatch() {
+  return (
+    <div className="relative w-3 h-3 flex items-center justify-center">
+      <div className="absolute inset-0 rounded-full border" style={{ borderColor: "hsl(var(--phantom-teal))", opacity: 0.4 }} />
+      <div className="w-2 h-2 rounded-full" style={{ backgroundColor: "hsl(var(--phantom-teal))" }} />
+    </div>
+  );
+}
+
+/** Red semi-transparent zone matching gap zones */
+function GapZoneSwatch() {
+  return (
+    <div
+      className="w-5 h-2.5 rounded-sm border"
+      style={{
+        backgroundColor: "hsl(var(--phantom-red) / 0.2)",
+        borderColor: "hsl(var(--phantom-red) / 0.4)",
+      }}
+    />
+  );
 }
 
 export { MapLegend };
