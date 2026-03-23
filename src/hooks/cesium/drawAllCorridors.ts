@@ -392,23 +392,7 @@ function drawPhantomCorridor(ctx: CesiumDrawContext, feature: any) {
       // @ts-ignore — CorridorGraphics heightReference
       heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
     });
-
-    // Glow halo — 14km, translucent
-    ctx.addEntity(`corr-${id}-glow-${i}`, {
-      corridor: {
-        positions,
-        width: 14000,
-        material: cesiumColor.withAlpha(0.15),
-        cornerType: Cesium.CornerType.MITERED,
-        height: 0,
-        extrudedHeight: 0,
-        outline: false,
-      },
-      // @ts-ignore — CorridorGraphics heightReference
-      heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
-    });
-  }
-
+    
   // ── LAYER 2: Flowing white dash — single entity ──
   let dashOffset = 0;
   ctx.addEntity(`corr-${id}-flow`, {
