@@ -349,125 +349,106 @@ function drawPhantomCorridor(ctx: CesiumDrawContext, feature: any) {
   const id = props.id as string;
   const risk = props.risk_class as string;
   const name = props.name as string;
-  const km = props.distance_km as number;
+  const score = props.score ?? 0.5;
   const mode = props.inferred_mode || props.mode || "mixed";
-  const gapKm = props.gap_km ?? 0;
-  const coverage = props.formal_poe_coverage ?? "N/A";
-  const color = RISK_COLORS[risk] ?? RISK_COLORS.MEDIUM;
-  const cesiumColor = Cesium.Color.fromCssColorString(color);
   const modeInfo = MODE_INFO[mode] ?? MODE_INFO.mixed;
+  const color = RISK_COLORS[risk] ?? RISK_COLORS.MEDIUM;
 
-  const rawCoords = feature.geometry.coordinates as [number, number][];
-  const denseCoords = densifyLine(rawCoords, 40);
-  const allCoords: number[] = denseCoords.flatMap((c) => [c[0], c[1]]);
-  const allPositions = Cesium.Cartesian3.fromDegreesArray(allCoords);
-  const descriptionHtml = buildPhantomTooltip(props, modeInfo, color);
-  const totalSegs = denseCoords.length - 1;
+  // Use dense coords directly — no re-densification
+  const coords = feature.geometry.coordinates as [number, number][];
+  const n = coords.length;
 
-  // Layer 1: Glow — single entity, wide, low alpha, uses risk color
-  ctx.addEntity(`corr-${id}-glow`, {
-    polyline: {
-      positions: allPositions,
-      clampToGround: true,
-      width: 18,
-      material: new Cesium.PolylineGlowMaterialProperty({
-        glowPower: 0.25,
-        color: cesiumColor.withAlpha(0.15),
-      }),
-    },
-  });
+  const allPositions = Cesium.Cartesian3.fromDegreesArray(
+    coords.flatMap((c) => [c[0], c[1]])
+  );
 
-  // Layer 2: Gradient spine — batched by color similarity
-  let batchStart = 0;
-  let batchColor = scoreToColor(0, risk);
-  const COLOR_THRESHOLD = 0.05;
+  // ── LAYER 1: Gradient band — 14px wide, batched every 8 segments ──
+  const BATCH = 8;
+  for (let i = 0; i < n - 1; i += BATCH) {
+    const end = Math.min(i + BATCH + 1, n);
+    const segCoords = coords.slice(i, end);
+    const t = i / (n - 1);
+    const hexColor = scoreToGradient(t, risk, score);
+    const cesiumColor = Cesium.Color.fromCssColorString(hexColor);
 
-  for (let i = 1; i <= totalSegs; i++) {
-    const segColor = i < totalSegs ? scoreToColor(i / totalSegs, risk) : batchColor;
-    const diff = Math.abs(segColor.red - batchColor.red) +
-                 Math.abs(segColor.green - batchColor.green) +
-                 Math.abs(segColor.blue - batchColor.blue);
+    const positions = Cesium.Cartesian3.fromDegreesArray(
+      segCoords.flatMap((c) => [c[0], c[1]])
+    );
 
-    if (diff > COLOR_THRESHOLD || i === totalSegs) {
-      const end = i === totalSegs ? i + 1 : i + 1;
-      const slice = denseCoords.slice(batchStart, Math.min(end, denseCoords.length));
-      if (slice.length >= 2) {
-        const batchPositions = Cesium.Cartesian3.fromDegreesArray(
-          slice.flatMap((c) => [c[0], c[1]])
-        );
-        // Use midpoint color for this batch
-        const midT = (batchStart + (slice.length - 1) / 2) / totalSegs;
-        const midColor = scoreToColor(midT, risk);
+    ctx.addEntity(`corr-${id}-band-${i}`, {
+      polyline: {
+        positions,
+        clampToGround: true,
+        width: 14,
+        material: cesiumColor.withAlpha(0.92),
+        arcType: Cesium.ArcType.GEODESIC,
+      },
+    });
 
-        ctx.addEntity(`corr-${id}-grad-${batchStart}`, {
-          polyline: {
-            positions: batchPositions,
-            clampToGround: true,
-            width: 4,
-            material: midColor.withAlpha(0.85),
-          },
-        });
-      }
-      batchStart = i;
-      batchColor = segColor;
-    }
+    ctx.addEntity(`corr-${id}-glow-${i}`, {
+      polyline: {
+        positions,
+        clampToGround: true,
+        width: 26,
+        material: cesiumColor.withAlpha(0.18),
+        arcType: Cesium.ArcType.GEODESIC,
+      },
+    });
   }
 
-  // Layer 3: Animated dash — single entity showing flow direction
+  // ── LAYER 2: Flowing white dash — single entity ──
   let dashOffset = 0;
-  ctx.addEntity(`corr-${id}-dash`, {
+  ctx.addEntity(`corr-${id}-flow`, {
     polyline: {
       positions: allPositions,
       clampToGround: true,
-      width: 2,
+      width: 3,
       material: new Cesium.PolylineDashMaterialProperty({
-        color: Cesium.Color.WHITE.withAlpha(0.45),
-        dashLength: 16,
+        color: Cesium.Color.WHITE.withAlpha(0.7),
+        dashLength: 20,
         dashPattern: new Cesium.CallbackProperty(() => {
           dashOffset = (dashOffset + 1) % 16;
           const base = 0xff00;
           return ((base << dashOffset) | (base >>> (16 - dashOffset))) & 0xffff;
         }, false) as any,
       }),
+      arcType: Cesium.ArcType.GEODESIC,
     },
   });
 
-  // Clickable invisible spine for tooltip
+  // ── LAYER 3: Clickable spine (invisible, carries tooltip) ──
   ctx.addEntity(`corr-${id}-spine`, {
-    name: name,
-    description: descriptionHtml,
+    name,
+    description: buildPhantomTooltip(props, modeInfo, color),
     polyline: {
       positions: allPositions,
       clampToGround: true,
-      width: 8,
+      width: 14,
       material: Cesium.Color.TRANSPARENT,
     },
     properties: {
       corridorId: id,
       routeType: "PHANTOM",
       risk,
-      km,
       mode,
-      gapKm,
-      formalCoverage: coverage,
     },
   });
 
   // Midpoint label
-  const midIdx = Math.floor(denseCoords.length / 2);
-  const midCoord = denseCoords[midIdx];
+  const midCoord = coords[Math.floor(n / 2)];
   if (midCoord) {
     ctx.addEntity(`corr-${id}-label`, {
       position: Cesium.Cartesian3.fromDegrees(midCoord[0], midCoord[1]),
       label: {
-        text: `⚠ PHANTOM · ${mode}`,
-        font: 'bold 9px "IBM Plex Mono", monospace',
-        fillColor: cesiumColor.withAlpha(0.8),
+        text: `⚠ ${name}`,
+        font: 'bold 12px "IBM Plex Mono", monospace',
+        fillColor: Cesium.Color.WHITE.withAlpha(0.9),
         outlineColor: Cesium.Color.fromCssColorString(T.bg),
         outlineWidth: 3,
         style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-        verticalOrigin: Cesium.VerticalOrigin.CENTER,
+        verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
         horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
+        pixelOffset: new Cesium.Cartesian2(0, -20),
         disableDepthTestDistance: Number.POSITIVE_INFINITY,
         distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 1_500_000),
         scaleByDistance: new Cesium.NearFarScalar(5e4, 1.0, 1.5e6, 0.5),
