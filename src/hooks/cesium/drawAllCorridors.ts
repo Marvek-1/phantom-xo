@@ -17,6 +17,56 @@ const RISK_COLORS: Record<string, string> = {
   MEDIUM: "#EAB308",
 };
 
+/* ── Gradient risk color utilities ── */
+
+const GRADIENT_PEAKS: Record<string, string> = {
+  CRITICAL: "#DC2626",
+  HIGH: "#EF4444",
+  MEDIUM: "#F59E0B",
+};
+
+const GRADIENT_GREEN = { r: 34, g: 197, b: 94 };   // #22C55E
+const GRADIENT_YELLOW = { r: 234, g: 179, b: 8 };   // #EAB308
+const GRADIENT_RED = { r: 239, g: 68, b: 68 };       // #EF4444
+const GRADIENT_CRIT = { r: 220, g: 38, b: 38 };      // #DC2626
+
+function lerpColor(
+  a: { r: number; g: number; b: number },
+  b: { r: number; g: number; b: number },
+  t: number
+): { r: number; g: number; b: number } {
+  return {
+    r: Math.round(a.r + (b.r - a.r) * t),
+    g: Math.round(a.g + (b.g - a.g) * t),
+    b: Math.round(a.b + (b.b - a.b) * t),
+  };
+}
+
+/**
+ * V-shape gradient: green at both ends, peak color at center.
+ * `t` goes 0→1 along the corridor path.
+ * `risk` shifts how red the peak is.
+ */
+function scoreToColor(t: number, risk: string): Cesium.Color {
+  // V-shape: convert t to 0→1→0 (peaks at center)
+  const v = 1 - Math.abs(2 * t - 1); // 0 at ends, 1 at center
+
+  // Choose peak based on risk
+  const peak = risk === "CRITICAL" ? GRADIENT_CRIT
+    : risk === "HIGH" ? GRADIENT_RED
+    : GRADIENT_YELLOW;
+
+  // Two-stop gradient: green → peak
+  let rgb: { r: number; g: number; b: number };
+  if (v < 0.5) {
+    rgb = lerpColor(GRADIENT_GREEN, GRADIENT_YELLOW, v * 2);
+  } else {
+    rgb = lerpColor(GRADIENT_YELLOW, peak, (v - 0.5) * 2);
+  }
+
+  return new Cesium.Color(rgb.r / 255, rgb.g / 255, rgb.b / 255, 1.0);
+}
+
 const MODE_INFO: Record<string, { terrain: string; weather: string; description: string }> = {
   canoe: {
     terrain: "Riverine — Congo/Ubangi basin waterways",
