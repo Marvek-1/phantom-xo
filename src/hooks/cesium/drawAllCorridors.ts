@@ -631,22 +631,15 @@ function drawPhantomPoe(ctx: CesiumDrawContext, feature: any) {
   const name = props.name || "Phantom POE";
   const gold = Cesium.Color.fromCssColorString("#FFD700");
 
-  // Pulsing outer ring — cache per-frame to guarantee both axes get same value
-  let cachedRadius = 3000;
-  let lastFrame = -1;
-  const makePulse = () => new Cesium.CallbackProperty((time: any, result: any) => {
-    const frame = Math.floor(Date.now() / 16); // ~60fps bucket
-    if (frame !== lastFrame) {
-      cachedRadius = 3000 + Math.sin(Date.now() * 0.003) * 1500;
-      lastFrame = frame;
-    }
-    return cachedRadius;
+  // Pulsing outer ring — single shared CallbackProperty prevents axis mismatch crash
+  const pulse = new Cesium.CallbackProperty(() => {
+    return Math.max(1, 3000 + Math.abs(Math.sin(Date.now() * 0.003)) * 1500);
   }, false);
   ctx.addEntity(`ppoe-${poeId}-pulse`, {
     position: Cesium.Cartesian3.fromDegrees(lng, lat),
     ellipse: {
-      semiMinorAxis: makePulse(),
-      semiMajorAxis: makePulse(),
+      semiMinorAxis: pulse,
+      semiMajorAxis: pulse,
       material: gold.withAlpha(0.1),
       outline: true,
       outlineColor: gold.withAlpha(0.3),
