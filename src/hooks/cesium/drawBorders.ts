@@ -15,11 +15,7 @@ const BOUNDS = { minLat: -40, maxLat: 40, minLng: -20, maxLng: 60 };
 
 function inBounds(coords: [number, number][]): boolean {
   return coords.some(
-    ([lng, lat]) =>
-      lat >= BOUNDS.minLat &&
-      lat <= BOUNDS.maxLat &&
-      lng >= BOUNDS.minLng &&
-      lng <= BOUNDS.maxLng
+    ([lng, lat]) => lat >= BOUNDS.minLat && lat <= BOUNDS.maxLat && lng >= BOUNDS.minLng && lng <= BOUNDS.maxLng,
   );
 }
 
@@ -38,11 +34,7 @@ export async function drawBorders(ctx: CesiumDrawContext): Promise<void> {
       if (!geom) continue;
 
       const lines: number[][][] =
-        geom.type === "MultiLineString"
-          ? geom.coordinates
-          : geom.type === "LineString"
-          ? [geom.coordinates]
-          : [];
+        geom.type === "MultiLineString" ? geom.coordinates : geom.type === "LineString" ? [geom.coordinates] : [];
 
       for (const line of lines) {
         if (line.length < 2) continue;
@@ -67,10 +59,10 @@ export async function drawBorders(ctx: CesiumDrawContext): Promise<void> {
           polyline: {
             positions,
             clampToGround: true,
-            width: 1.2,
+            width: 3,
             material: new Cesium.PolylineDashMaterialProperty({
               color: borderColor,
-              dashLength: 12,
+              dashLength: 5,
               dashPattern: 0b1111111100000000,
             }),
           },
