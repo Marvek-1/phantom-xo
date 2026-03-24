@@ -83,8 +83,10 @@ export function useCesiumMap(containerRef: React.RefObject<HTMLDivElement | null
         geocoder: false, homeButton: false, infoBox: true,
         sceneModePicker: false, selectionIndicator: true,
         timeline: false, navigationHelpButton: false,
-        scene3DOnly: true, creditContainer: creditDiv,
+        scene3DOnly: false, creditContainer: creditDiv,
         requestRenderMode: false, msaaSamples: 4,
+        sceneMode: Cesium.SceneMode.SCENE2D,
+        mapProjection: new Cesium.WebMercatorProjection(),
       });
 
       viewer.imageryLayers.removeAll();

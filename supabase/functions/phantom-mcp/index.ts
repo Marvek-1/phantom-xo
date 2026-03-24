@@ -240,7 +240,7 @@ async function handleTool(name: string, args: Record<string, unknown>) {
           .limit(10);
 
         if (atoms) {
-          analysis.evidence = atoms.map((a: any) => ({
+          (analysis as any).evidence = atoms.map((a: any) => ({
             source: a.source,
             sourceRecordId: a.source_record_id,
             timestamp: a.timestamp,
