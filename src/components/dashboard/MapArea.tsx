@@ -103,10 +103,10 @@ const MapArea = ({ onMapReady }: MapAreaProps) => {
             </div>
             <div className="text-center">
               <p className="text-xs font-mono text-phantom-green/60 tracking-[0.3em] uppercase">
-                Initializing 3D Globe
+                Initializing Mercator Map
               </p>
               <p className="text-[10px] font-mono text-muted-foreground mt-1 tracking-wider">
-                CesiumJS · MapTiler · East Africa
+                CesiumJS · MapTiler · East Africa · 2D
               </p>
             </div>
           </div>
