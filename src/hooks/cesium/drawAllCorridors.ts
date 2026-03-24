@@ -93,6 +93,23 @@ const NODE_TYPE_CONFIG: Record<string, { pixelSize: number; showLabel: boolean; 
   waypoint: { pixelSize: 3, showLabel: false, distMax: 300_000, color: "#9CA3AF" },
 };
 
+/* ── Coordinate simplification for large formal routes ── */
+
+/**
+ * Reduce coordinate count by sampling every Nth point.
+ * Keeps first, last, and evenly-spaced intermediate points.
+ */
+function simplifyCoords(coords: [number, number][], maxPoints = 500): [number, number][] {
+  if (coords.length <= maxPoints) return coords;
+  const step = (coords.length - 1) / (maxPoints - 1);
+  const result: [number, number][] = [];
+  for (let i = 0; i < maxPoints - 1; i++) {
+    result.push(coords[Math.round(i * step)]);
+  }
+  result.push(coords[coords.length - 1]);
+  return result;
+}
+
 /* ── Geodesic densification ── */
 
 /**
@@ -318,7 +335,18 @@ export async function drawAllCorridors(ctx: CesiumDrawContext): Promise<Corridor
 
   const geo = await geoRes.json();
   const meta: CorridorMeta[] = await metaRes.json();
+  console.log("[Corridors] Paired GeoJSON loaded:", geo.features.length, "features");
 
+  // Build metadata lookup from paired formal features (keyed by phantom_id → corridor ID)
+  const formalMetaByCorridorId = new Map<string, any>();
+  for (const feature of geo.features) {
+    const p = feature.properties;
+    if (p.route_type === "FORMAL" && feature.geometry.type === "LineString" && p.phantom_id) {
+      formalMetaByCorridorId.set(p.phantom_id, p);
+    }
+  }
+
+  // Render features from corridors_paired.geojson (skip FORMAL LineStrings — replaced by Mapbox routes)
   for (const feature of geo.features) {
     const props = feature.properties;
     const routeType = props.route_type as string;
@@ -327,7 +355,8 @@ export async function drawAllCorridors(ctx: CesiumDrawContext): Promise<Corridor
     if (geomType === "LineString" && routeType === "PHANTOM") {
       drawPhantomCorridor(ctx, feature);
     } else if (geomType === "LineString" && routeType === "FORMAL") {
-      drawFormalRoute(ctx, feature);
+      // Skip — replaced by road-snapped Mapbox routes below
+      continue;
     } else if (geomType === "Point" && routeType === "NODE") {
       drawNode(ctx, feature);
     } else if (geomType === "Point" && routeType === "FORMAL_GATE") {
@@ -337,6 +366,24 @@ export async function drawAllCorridors(ctx: CesiumDrawContext): Promise<Corridor
     } else if (geomType === "Point" && routeType === "PHANTOM_POE") {
       drawPhantomPoe(ctx, feature);
     }
+  }
+
+  // Render road-snapped formal routes from Mapbox Directions API (non-blocking)
+  try {
+    const formalRes = await fetch("/data/formal/all_formal_routes.geojson");
+    if (formalRes.ok) {
+      const formalGeo = await formalRes.json();
+      console.log("[Corridors] Formal routes loaded:", formalGeo.features.length, "routes");
+      for (const feature of formalGeo.features) {
+        const corridorId = feature.properties.id;
+        const pairedMeta = formalMetaByCorridorId.get(corridorId);
+        drawFormalRoute(ctx, feature, pairedMeta);
+      }
+    } else {
+      console.warn("[Corridors] Failed to fetch formal routes:", formalRes.status);
+    }
+  } catch (err) {
+    console.warn("[Corridors] Error loading formal routes:", err);
   }
 
   return meta;
@@ -378,7 +425,7 @@ function drawPhantomCorridor(ctx: CesiumDrawContext, feature: any) {
       segCoords.flatMap((c) => [c[0], c[1]])
     );
 
-    // Smooth filled ribbon — 6km band, clamped to terrain
+    // Smooth filled ribbon — 4km band, clamped to ground
     ctx.addEntity(`corr-${id}-band-${i}`, {
       corridor: {
         positions,
@@ -389,8 +436,6 @@ function drawPhantomCorridor(ctx: CesiumDrawContext, feature: any) {
         extrudedHeight: 0,
         outline: false,
       },
-      // @ts-ignore — CorridorGraphics heightReference
-      heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
     });
   } // close batch for-loop
 
@@ -456,22 +501,27 @@ function drawPhantomCorridor(ctx: CesiumDrawContext, feature: any) {
   }
 }
 
-function drawFormalRoute(ctx: CesiumDrawContext, feature: any) {
+function drawFormalRoute(ctx: CesiumDrawContext, feature: any, pairedMeta?: any) {
   const props = feature.properties;
   const id = props.id as string;
   const name = props.name as string;
-  const phantomId = props.phantom_id ?? "";
-  const coveragePct = props.coverage_pct ?? 0;
   const formalBlue = Cesium.Color.fromCssColorString("#3B82F6");
 
-  // Densify
+  // Merge road-snapped route properties with rich metadata from paired file
+  const merged = pairedMeta ? { ...props, ...pairedMeta } : props;
+  const corridorId = merged.phantom_id || id;
+  const coveragePct = merged.coverage_pct ?? 0;
+  const distKm = props.distance_km ?? merged.distance_km ?? 0;
+
+  // Road-snapped coordinates from Mapbox — simplify large routes to avoid terrain-clamp perf issues
   const rawCoords = feature.geometry.coordinates as [number, number][];
-  const denseCoords = densifyLine(rawCoords, 40);
-  const coords: number[] = denseCoords.flatMap((c) => [c[0], c[1]]);
+  const simplified = simplifyCoords(rawCoords, 500);
+  const coords: number[] = simplified.flatMap((c) => [c[0], c[1]]);
   const positions = Cesium.Cartesian3.fromDegreesArray(coords);
 
-  const descriptionHtml = buildFormalTooltip(props);
+  const descriptionHtml = buildFormalTooltip(merged);
 
+  // Solid blue polyline, clamped to terrain
   ctx.addEntity(`formal-${id}-line`, {
     name: name,
     description: descriptionHtml,
@@ -482,20 +532,23 @@ function drawFormalRoute(ctx: CesiumDrawContext, feature: any) {
       material: formalBlue.withAlpha(0.7),
     },
     properties: {
-      corridorId: phantomId,
+      corridorId,
       routeType: "FORMAL",
       coveragePct,
     },
   });
 
   // Midpoint label
-  const midIdx = Math.floor(denseCoords.length / 2);
-  const midCoord = denseCoords[midIdx];
+  const midIdx = Math.floor(simplified.length / 2);
+  const midCoord = simplified[midIdx];
   if (midCoord) {
+    const labelText = coveragePct > 0
+      ? `FORMAL · ${coveragePct}% · ${distKm.toFixed?.(0) ?? distKm} km`
+      : `FORMAL · ${distKm.toFixed?.(0) ?? distKm} km`;
     ctx.addEntity(`formal-${id}-label`, {
       position: Cesium.Cartesian3.fromDegrees(midCoord[0], midCoord[1]),
       label: {
-        text: `FORMAL · ${coveragePct}%`,
+        text: labelText,
         font: 'bold 9px "IBM Plex Mono", monospace',
         fillColor: formalBlue.withAlpha(0.8),
         outlineColor: Cesium.Color.fromCssColorString(T.bg),
