@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -35,7 +35,7 @@ const MIN_TRUTH = 0.80;
 
 // ─── ACLED Provider ────────────────────────────────────────
 async function ingestACLED(
-  db: ReturnType<typeof createClient>,
+  db: any,
   runId: string,
   daysBack = 30,
 ): Promise<{ rawCount: number; signalCount: number; errors: string[] }> {
@@ -144,7 +144,7 @@ async function ingestACLED(
 
 // ─── DTM Provider ──────────────────────────────────────────
 async function ingestDTM(
-  db: ReturnType<typeof createClient>,
+  db: any,
   runId: string,
 ): Promise<{ rawCount: number; signalCount: number; errors: string[] }> {
   const apiKey = Deno.env.get("DTM_API_KEY");
@@ -217,7 +217,7 @@ async function ingestDTM(
 
 // ─── DHIS2 Provider ────────────────────────────────────────
 async function ingestDHIS2(
-  db: ReturnType<typeof createClient>,
+  db: any,
   runId: string,
 ): Promise<{ rawCount: number; signalCount: number; errors: string[] }> {
   const baseUrl = Deno.env.get("DHIS2_BASE_URL");

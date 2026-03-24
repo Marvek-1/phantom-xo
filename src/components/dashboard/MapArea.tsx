@@ -14,29 +14,7 @@ const MapArea = ({ onMapReady }: MapAreaProps) => {
   const cesium = useCesiumMap(containerRef);
   const [coords, setCoords] = useState({ lat: -1.5, lng: 34, alt: 3000 });
 
-  // Add a clipping region based on the loaded project footprint
-  useEffect(() => {
-    if (!cesium.mapReady || !cesium.viewer.current) return;
-    const viewer = cesium.viewer.current;
-    if (viewer.isDestroyed()) return;
-
-    const now = Cesium.JulianDate.now();
-    const polygons = viewer.entities.values.flatMap((entity) => {
-      const hierarchy = entity.polygon?.hierarchy?.getValue(now);
-      const positions = hierarchy instanceof Cesium.PolygonHierarchy ? hierarchy.positions : [];
-      return positions.length ? [new Cesium.ClippingPolygon({ positions })] : [];
-    });
-
-    viewer.scene.globe.clippingPolygons = polygons.length
-      ? new Cesium.ClippingPolygonCollection({ polygons })
-      : undefined;
-
-    return () => {
-      if (!viewer.isDestroyed()) {
-        viewer.scene.globe.clippingPolygons = undefined;
-      }
-    };
-  }, [cesium.mapReady, cesium.viewer, cesium.corridorsMeta]);
+  // 2D Mercator — no clipping polygons needed
 
   // Notify parent when map is ready
   useEffect(() => {
@@ -125,10 +103,10 @@ const MapArea = ({ onMapReady }: MapAreaProps) => {
             </div>
             <div className="text-center">
               <p className="text-xs font-mono text-phantom-green/60 tracking-[0.3em] uppercase">
-                Initializing 3D Globe
+                Initializing Mercator Map
               </p>
               <p className="text-[10px] font-mono text-muted-foreground mt-1 tracking-wider">
-                CesiumJS · MapTiler · East Africa
+                CesiumJS · MapTiler · East Africa · 2D
               </p>
             </div>
           </div>

@@ -83,8 +83,10 @@ export function useCesiumMap(containerRef: React.RefObject<HTMLDivElement | null
         geocoder: false, homeButton: false, infoBox: true,
         sceneModePicker: false, selectionIndicator: true,
         timeline: false, navigationHelpButton: false,
-        scene3DOnly: true, creditContainer: creditDiv,
+        scene3DOnly: false, creditContainer: creditDiv,
         requestRenderMode: false, msaaSamples: 4,
+        sceneMode: Cesium.SceneMode.SCENE2D,
+        mapProjection: new Cesium.WebMercatorProjection(),
       });
 
       viewer.imageryLayers.removeAll();
@@ -112,14 +114,10 @@ export function useCesiumMap(containerRef: React.RefObject<HTMLDivElement | null
       viewer.scene.backgroundColor = Cesium.Color.fromCssColorString(T.bg);
       viewer.scene.globe.enableLighting = false;
       viewer.scene.globe.showGroundAtmosphere = false;
-      if (viewer.scene.skyAtmosphere) viewer.scene.skyAtmosphere.show = false;
-      if (viewer.scene.skyBox) viewer.scene.skyBox.show = false;
-      if (viewer.scene.sun) viewer.scene.sun.show = false;
-      if (viewer.scene.moon) viewer.scene.moon.show = false;
 
+      // 2D Mercator view — center on East Africa
       viewer.camera.setView({
-        destination: Cesium.Cartesian3.fromDegrees(34.0, -1.5, 3_000_000),
-        orientation: { heading: 0, pitch: Cesium.Math.toRadians(-60), roll: 0 },
+        destination: Cesium.Cartesian3.fromDegrees(34.0, -1.5, 5_000_000),
       });
 
       viewerRef.current = viewer;
@@ -158,11 +156,6 @@ export function useCesiumMap(containerRef: React.RefObject<HTMLDivElement | null
     if (!viewer) return;
     viewer.camera.flyTo({
       destination: Cesium.Cartesian3.fromDegrees(target.lng, target.lat, target.alt),
-      orientation: {
-        heading: Cesium.Math.toRadians(target.heading),
-        pitch: Cesium.Math.toRadians(target.pitch),
-        roll: 0,
-      },
       duration: 1.8,
       easingFunction: Cesium.EasingFunction.CUBIC_IN_OUT,
     });
