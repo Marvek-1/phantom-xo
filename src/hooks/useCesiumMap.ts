@@ -223,7 +223,6 @@ export function useCesiumMap(containerRef: React.RefObject<HTMLDivElement | null
       evidenceDataRef.current = data;
       setTemporalRange(getTemporalRange(data));
 
-      const viewer = viewerRef.current;
       if (viewer) {
         cascadeEngineRef.current = createCascadeEngine(viewer, data, entityIds);
       }
