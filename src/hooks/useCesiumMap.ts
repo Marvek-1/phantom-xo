@@ -156,11 +156,6 @@ export function useCesiumMap(containerRef: React.RefObject<HTMLDivElement | null
     if (!viewer) return;
     viewer.camera.flyTo({
       destination: Cesium.Cartesian3.fromDegrees(target.lng, target.lat, target.alt),
-      orientation: {
-        heading: Cesium.Math.toRadians(target.heading),
-        pitch: Cesium.Math.toRadians(target.pitch),
-        roll: 0,
-      },
       duration: 1.8,
       easingFunction: Cesium.EasingFunction.CUBIC_IN_OUT,
     });
