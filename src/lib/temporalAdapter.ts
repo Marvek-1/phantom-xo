@@ -1,7 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
+import { getPublicApiHeaders, getTemporalApiUrl, isSupabaseFunctionUrl } from "@/lib/backendEndpoints";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
 interface TemporalFlowsResponse {
@@ -136,25 +136,32 @@ function getLineAnchor(coordinates: [number, number][]): CorridorAnchor | null {
   };
 }
 
-async function getFunctionHeaders() {
+async function getFunctionHeaders(url: string) {
   const headers: Record<string, string> = {
-    apikey: SUPABASE_PUBLISHABLE_KEY,
+    ...getPublicApiHeaders(),
   };
 
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
+  if (isSupabaseFunctionUrl(url)) {
+    if (SUPABASE_PUBLISHABLE_KEY) {
+      headers.apikey = SUPABASE_PUBLISHABLE_KEY;
+    }
 
-  if (session?.access_token) {
-    headers.Authorization = `Bearer ${session.access_token}`;
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    if (session?.access_token) {
+      headers.Authorization = `Bearer ${session.access_token}`;
+    }
   }
 
   return headers;
 }
 
 async function fetchTemporalJson<T>(query = ""): Promise<T> {
-  const response = await fetch(`${SUPABASE_URL}/functions/v1/api-temporal${query}`, {
-    headers: await getFunctionHeaders(),
+  const url = `${getTemporalApiUrl()}${query}`;
+  const response = await fetch(url, {
+    headers: await getFunctionHeaders(url),
   });
 
   if (!response.ok) {

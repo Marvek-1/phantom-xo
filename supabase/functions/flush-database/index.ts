@@ -1,10 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { handleCorsPreflight, withCorsHeaders } from "../_shared/cors.ts";
 
 // Tables to NEVER flush — infrastructure / auth
 const PRESERVE_TABLES = new Set([
@@ -22,6 +18,7 @@ const FLUSH_ORDER = [
   "moscript_runs",
   "moscript_registry",
   // Corridor score children
+  "corridor_drift",
   "corridor_scores",
   "corridor_signals",
   // Corridor definition children
@@ -89,9 +86,8 @@ const FLUSH_ORDER = [
 ];
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
+  const preflight = handleCorsPreflight(req);
+  if (preflight) return preflight;
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -114,7 +110,7 @@ serve(async (req) => {
         if (!roleCheck) {
           return new Response(
             JSON.stringify({ error: "Admin role required for flush" }),
-            { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            { status: 403, headers: withCorsHeaders({ "Content-Type": "application/json" }) }
           );
         }
       }
@@ -227,12 +223,12 @@ serve(async (req) => {
         remaining,
         message: "Database clean. Only infrastructure rows intentionally reseeded.",
       }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { headers: withCorsHeaders({ "Content-Type": "application/json" }) }
     );
   } catch (err) {
     return new Response(
       JSON.stringify({ error: (err as Error).message }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 500, headers: withCorsHeaders({ "Content-Type": "application/json" }) }
     );
   }
 });

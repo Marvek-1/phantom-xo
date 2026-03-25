@@ -1,4 +1,4 @@
-import * as Cesium from "cesium";
+import type mapboxgl from "mapbox-gl";
 import type { EvidenceSignal } from "@/lib/temporalAdapter";
 
 export interface CascadeState {
@@ -16,12 +16,12 @@ export interface CascadeState {
 
 /**
  * Day-by-day evidence cascade replay for a specific corridor.
- * Reveals evidence entities grouped by day offset with a timed interval.
+ * Filters the evidence-circles layer to reveal signals progressively.
  */
 export function createCascadeEngine(
-  viewer: Cesium.Viewer,
+  map: mapboxgl.Map,
   evidenceData: EvidenceSignal[],
-  evidenceEntityIds: string[]
+  featureIds: string[]
 ) {
   const emptyState = (): CascadeState => ({
     day: 0,
@@ -77,17 +77,30 @@ export function createCascadeEngine(
     return filtered.length > 0;
   }
 
-  function resetVisibleSignals() {
-    for (const id of evidenceEntityIds) {
-      const entity = viewer.entities.getById(id);
-      if (entity) entity.show = false;
+  function applyFilter(revealedIndices: Set<number>) {
+    if (!map.getLayer("evidence-circles")) return;
+
+    if (revealedIndices.size === 0) {
+      // Hide all
+      map.setFilter("evidence-circles", ["==", ["get", "fid"], "__none__"]);
+      map.setFilter("evidence-labels", ["==", ["get", "fid"], "__none__"]);
+      return;
     }
+
+    const fids = Array.from(revealedIndices).map((idx) => featureIds[idx]);
+    map.setFilter("evidence-circles", ["in", ["get", "fid"], ["literal", fids]]);
+    map.setFilter("evidence-labels", ["in", ["get", "fid"], ["literal", fids]]);
+
+    // Ensure visible
+    map.setLayoutProperty("evidence-circles", "visibility", "visible");
+    map.setLayoutProperty("evidence-labels", "visibility", "visible");
   }
 
   function buildStateThroughIndex(targetIndex: number, active: boolean) {
-    resetVisibleSignals();
+    const revealed = new Set<number>();
 
     if (!timelineKeys.length || targetIndex < 0) {
+      applyFilter(revealed);
       state = {
         ...emptyState(),
         active,
@@ -107,13 +120,14 @@ export function createCascadeEngine(
       const key = timelineKeys[index];
       const signals = groupedSignals.get(key) ?? [];
       for (const signal of signals) {
-        const entity = viewer.entities.getById(evidenceEntityIds[signal.entityIdx]);
-        if (entity) entity.show = true;
+        revealed.add(signal.entityIdx);
         cumulativeScore += signal.score;
         signalsRevealed++;
         day = Math.max(day, signal.day);
       }
     }
+
+    applyFilter(revealed);
 
     state = {
       day,
@@ -189,7 +203,7 @@ export function createCascadeEngine(
   }
 
   function hideAll() {
-    resetVisibleSignals();
+    applyFilter(new Set());
   }
 
   return { start, stop, hideAll, seek };

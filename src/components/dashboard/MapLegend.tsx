@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ChevronDown, ChevronUp, Play, Square, Layers, Eye, EyeOff } from "lucide-react";
 
 interface CorridorMeta {
@@ -9,11 +9,20 @@ interface CorridorMeta {
   mode: string;
 }
 
+interface CoverageStats {
+  monitoredPct: number;
+  unmonitoredPct: number;
+  totalCorridors: number;
+  totalPhantomKm: number;
+  totalFormalKm: number;
+}
+
 interface MapLegendProps {
   officialPOEsVisible: boolean;
   onTogglePOEs: (visible: boolean) => void;
   corridorsMeta?: CorridorMeta[];
   corridorsLoaded?: boolean;
+  coverageStats?: CoverageStats | null;
   evidenceVisible?: boolean;
   onToggleEvidence?: () => void;
   cascadeActive?: boolean;
@@ -25,6 +34,17 @@ interface MapLegendProps {
   temporalRange?: { min: Date; max: Date } | null;
   layerVisibility?: Record<string, boolean>;
   onToggleLayer?: (layer: string) => void;
+  selectedCorridorId?: string | null;
+  driftResult?: {
+    corridorId: string;
+    confidence: number;
+    avgMagnitudeKm: number;
+    bearingDeg: number;
+    activationLikelihood: number;
+    drivers: Array<{ name: string; weight: number; signalCount: number }>;
+  } | null;
+  onComputeDrift?: (corridorId: string) => void;
+  onClearDrift?: () => void;
 }
 
 const LAYER_DEFS = [
@@ -40,6 +60,7 @@ const MapLegend = ({
   onTogglePOEs,
   corridorsMeta = [],
   corridorsLoaded = false,
+  coverageStats,
   evidenceVisible = false,
   onToggleEvidence,
   cascadeActive = false,
@@ -51,10 +72,15 @@ const MapLegend = ({
   temporalRange,
   layerVisibility = {},
   onToggleLayer,
+  selectedCorridorId,
+  driftResult,
+  onComputeDrift,
+  onClearDrift,
 }: MapLegendProps) => {
   const [expanded, setExpanded] = useState(true);
   const [layersExpanded, setLayersExpanded] = useState(true);
   const [cascadeCorridorId, setCascadeCorridorId] = useState("");
+  const [driftCorridorId, setDriftCorridorId] = useState("");
   const activeDate = currentDate ?? temporalRange?.min ?? null;
   const rangeStart = temporalRange?.min
     ? temporalRange.min.toLocaleDateString("en-GB", { month: "short", year: "numeric" })
@@ -62,6 +88,12 @@ const MapLegend = ({
   const rangeEnd = temporalRange?.max
     ? temporalRange.max.toLocaleDateString("en-GB", { month: "short", year: "numeric" })
     : "Jan 2025";
+
+  useEffect(() => {
+    if (selectedCorridorId && !driftCorridorId) {
+      setDriftCorridorId(selectedCorridorId);
+    }
+  }, [selectedCorridorId, driftCorridorId]);
 
   return (
     <div className="absolute bottom-4 right-4 z-10 animate-fade-in">
@@ -109,7 +141,7 @@ const MapLegend = ({
             </div>
 
             {/* Coverage gap */}
-            {corridorsLoaded && (
+            {corridorsLoaded && coverageStats && (
               <div className="pt-2 mt-1.5 border-t border-border">
                 <p className="text-xs font-mono text-muted-foreground uppercase tracking-wider mb-2">
                   Coverage Gap
@@ -117,21 +149,21 @@ const MapLegend = ({
                 <div className="flex h-3 rounded-full overflow-hidden border border-border">
                   <div
                     className="bg-[hsl(217,91%,60%)]"
-                    style={{ width: "29.4%" }}
-                    title="Formal coverage: 29.4%"
+                    style={{ width: `${coverageStats.monitoredPct}%` }}
+                    title={`Formal coverage: ${coverageStats.monitoredPct}%`}
                   />
                   <div
                     className="bg-destructive/60"
-                    style={{ width: "70.6%" }}
-                    title="Unmonitored: 70.6%"
+                    style={{ width: `${coverageStats.unmonitoredPct}%` }}
+                    title={`Unmonitored: ${coverageStats.unmonitoredPct}%`}
                   />
                 </div>
                 <div className="flex justify-between mt-1.5">
-                  <span className="text-xs font-mono text-[hsl(217,91%,60%)]">29.4% monitored</span>
-                  <span className="text-xs font-mono text-destructive">70.6% hidden</span>
+                  <span className="text-xs font-mono text-[hsl(217,91%,60%)]">{coverageStats.monitoredPct}% monitored</span>
+                  <span className="text-xs font-mono text-destructive">{coverageStats.unmonitoredPct}% hidden</span>
                 </div>
                 <p className="text-xs font-mono text-muted-foreground tabular-nums mt-1">
-                  {corridorsMeta.length} corridors
+                  {coverageStats.totalCorridors} corridors · {coverageStats.totalPhantomKm.toLocaleString()} km phantom · {coverageStats.totalFormalKm.toLocaleString()} km formal
                 </p>
               </div>
             )}
@@ -161,9 +193,7 @@ const MapLegend = ({
                         <button
                           key={layer.key}
                           onClick={() => {
-                            if (layer.key === "officialPOEs") {
-                              onTogglePOEs(!officialPOEsVisible);
-                            } else if (layer.key === "evidence") {
+                            if (layer.key === "evidence") {
                               onToggleEvidence?.();
                             } else {
                               onToggleLayer(layer.key);
@@ -204,6 +234,7 @@ const MapLegend = ({
                 <select
                   value={cascadeCorridorId}
                   onChange={(e) => setCascadeCorridorId(e.target.value)}
+                  aria-label="Select corridor for cascade replay"
                   className="w-full text-xs font-mono bg-background border border-border rounded px-2 py-1.5 text-foreground/80"
                   disabled={cascadeActive}
                 >
@@ -244,6 +275,8 @@ const MapLegend = ({
                     min={0}
                     max={100}
                     value={scrubberPosition}
+                    title="Scrub cascade replay timeline"
+                    placeholder="Scrub timeline"
                     onChange={(e) => onScrub?.(cascadeCorridorId, Number(e.target.value))}
                     disabled={!cascadeCorridorId}
                     className="w-full accent-red-500 disabled:opacity-40"
@@ -253,6 +286,85 @@ const MapLegend = ({
                     <span>{rangeEnd}</span>
                   </div>
                 </div>
+              </div>
+            )}
+
+            {/* Drift controls */}
+            {onComputeDrift && corridorsMeta.length > 0 && (
+              <div className="pt-2 mt-1.5 border-t border-border space-y-1.5">
+                <p className="text-xs font-mono text-muted-foreground uppercase tracking-wider mb-1.5">
+                  Predictive Drift
+                </p>
+                <select
+                  value={driftCorridorId}
+                  onChange={(e) => setDriftCorridorId(e.target.value)}
+                  aria-label="Select corridor for predictive drift analysis"
+                  className="w-full text-xs font-mono bg-background border border-border rounded px-2 py-1.5 text-foreground/80"
+                >
+                  <option value="">Select corridor…</option>
+                  {corridorsMeta.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name} ({c.risk})
+                    </option>
+                  ))}
+                </select>
+                <div className="flex gap-1.5">
+                  <button
+                    onClick={() => driftCorridorId && onComputeDrift(driftCorridorId)}
+                    disabled={!driftCorridorId}
+                    className="px-2.5 py-1 text-xs font-mono rounded bg-[hsl(var(--phantom-amber))]/20 text-[hsl(var(--phantom-amber))] hover:bg-[hsl(var(--phantom-amber))]/30 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Run Drift
+                  </button>
+                  {driftResult && onClearDrift && (
+                    <button
+                      onClick={onClearDrift}
+                      className="px-2.5 py-1 text-xs font-mono rounded bg-muted/30 text-muted-foreground hover:bg-muted/40 transition-colors"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+
+                {driftResult && (
+                  <div className="mt-1.5 p-2 rounded border border-border bg-muted/15 space-y-1.5">
+                    <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[10px] font-mono">
+                      <span className="text-muted-foreground">Confidence</span>
+                      <span className="text-foreground tabular-nums text-right">
+                        {(driftResult.confidence * 100).toFixed(1)}%
+                      </span>
+                      <span className="text-muted-foreground">Activation</span>
+                      <span className="text-foreground tabular-nums text-right">
+                        {(driftResult.activationLikelihood * 100).toFixed(1)}%
+                      </span>
+                      <span className="text-muted-foreground">Avg shift</span>
+                      <span className="text-foreground tabular-nums text-right">
+                        {driftResult.avgMagnitudeKm.toFixed(1)} km
+                      </span>
+                      <span className="text-muted-foreground">Bearing</span>
+                      <span className="text-foreground tabular-nums text-right">
+                        {Math.round(driftResult.bearingDeg)}°
+                      </span>
+                    </div>
+                    {driftResult.drivers.length > 0 && (
+                      <div className="pt-1 border-t border-border">
+                        <p className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider mb-1">
+                          Top Drivers
+                        </p>
+                        <div className="space-y-0.5">
+                          {driftResult.drivers.slice(0, 3).map((d) => (
+                            <div key={d.name} className="flex items-center justify-between text-[10px] font-mono">
+                              <span className="text-foreground/80 truncate pr-2">{d.name}</span>
+                              <span className="text-muted-foreground tabular-nums">
+                                {(d.weight * 100).toFixed(0)}%
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>

@@ -1,10 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
+import { handleCorsPreflight, withCorsHeaders } from "../_shared/cors.ts";
 
 const SYSTEM_PROMPT = `You are **Ollam · Mostar**, the intelligence analyst AI embedded in the Phantom POE Engine — a geospatial surveillance platform that detects informal border-crossing corridors across East/Central Africa.
 
@@ -43,9 +38,8 @@ Available tools:
 - Keep responses under 200 words unless the user asks for detail`;
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
+  const preflight = handleCorsPreflight(req);
+  if (preflight) return preflight;
 
   try {
     const { messages, thinking } = await req.json();
@@ -80,31 +74,31 @@ serve(async (req) => {
       if (response.status === 429) {
         return new Response(JSON.stringify({ error: "Rate limit exceeded. Try again in a moment." }), {
           status: 429,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: withCorsHeaders({ "Content-Type": "application/json" }),
         });
       }
       if (response.status === 402) {
         return new Response(JSON.stringify({ error: "AI credits exhausted. Add funds at Settings → Workspace → Usage." }), {
           status: 402,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: withCorsHeaders({ "Content-Type": "application/json" }),
         });
       }
       const t = await response.text();
       console.error("AI gateway error:", response.status, t);
       return new Response(JSON.stringify({ error: `AI gateway error (${response.status})` }), {
         status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: withCorsHeaders({ "Content-Type": "application/json" }),
       });
     }
 
     return new Response(response.body, {
-      headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
+      headers: withCorsHeaders({ "Content-Type": "text/event-stream" }),
     });
   } catch (e) {
     console.error("ollam-chat error:", e);
     return new Response(
       JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 500, headers: withCorsHeaders({ "Content-Type": "application/json" }) }
     );
   }
 });

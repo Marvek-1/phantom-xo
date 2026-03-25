@@ -1,11 +1,34 @@
-/**
- * Ollam · Mostar — Streaming chat client
- * Calls the ollam-chat edge function and streams tokens back.
- */
+import { supabase } from "@/integrations/supabase/client";
+import { getOllamChatApiUrl, getPublicApiHeaders, isSupabaseFunctionUrl } from "@/lib/backendEndpoints";
 
 type Msg = { role: "user" | "assistant"; content: string };
 
-const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ollam-chat`;
+const CHAT_URL = getOllamChatApiUrl();
+
+async function getChatHeaders(url: string): Promise<Record<string, string>> {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...getPublicApiHeaders(),
+  };
+
+  if (isSupabaseFunctionUrl(url)) {
+    const apikey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined;
+    if (apikey) {
+      headers.apikey = apikey;
+      headers.Authorization = `Bearer ${apikey}`;
+    }
+
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    if (session?.access_token) {
+      headers.Authorization = `Bearer ${session.access_token}`;
+    }
+  }
+
+  return headers;
+}
 
 export async function streamOllam({
   messages,
@@ -22,10 +45,7 @@ export async function streamOllam({
 }) {
   const resp = await fetch(CHAT_URL, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-    },
+    headers: await getChatHeaders(CHAT_URL),
     body: JSON.stringify({ messages, thinking }),
     signal,
   });
@@ -73,7 +93,6 @@ export async function streamOllam({
     }
   }
 
-  // flush remainder
   if (buf.trim()) {
     for (let raw of buf.split("\n")) {
       if (!raw) continue;
@@ -85,28 +104,30 @@ export async function streamOllam({
         const parsed = JSON.parse(json);
         const content = parsed.choices?.[0]?.delta?.content as string | undefined;
         if (content) onDelta(content);
-      } catch { /* partial */ }
+      } catch {
+        // ignore partial frame
+      }
     }
   }
 
   onDone();
 }
 
-/**
- * Parse tool invocations from Ollam's response text.
- * Looks for ```tool\n{...}\n``` blocks.
- */
 export function extractToolCalls(
   text: string
 ): Array<{ tool: string; args: Record<string, unknown> }> {
   const results: Array<{ tool: string; args: Record<string, unknown> }> = [];
   const regex = /```tool\s*\n([\s\S]*?)```/g;
-  let m;
-  while ((m = regex.exec(text)) !== null) {
+  let match: RegExpExecArray | null;
+  while ((match = regex.exec(text)) !== null) {
     try {
-      const parsed = JSON.parse(m[1].trim());
-      if (parsed.tool) results.push(parsed);
-    } catch { /* skip bad JSON */ }
+      const parsed = JSON.parse(match[1].trim());
+      if (parsed.tool) {
+        results.push(parsed);
+      }
+    } catch {
+      // skip malformed block
+    }
   }
   return results;
 }

@@ -7,7 +7,7 @@ import { RadarIndicator } from "@/components/dashboard/RadarIndicator";
 import { SignalBadge } from "@/components/dashboard/SignalBadge";
 import { CorridorDetailSidebar } from "@/components/dashboard/CorridorDetailSidebar";
 import type { CorridorAnalysisResult, SignalSummary, MapParams } from "@/types/phantom";
-import type { useCesiumMap } from "@/hooks/useCesiumMap";
+import type { useMapboxMap } from "@/hooks/useMapboxMap";
 
 const Index = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -15,9 +15,9 @@ const Index = () => {
   const [monitoredId, setMonitoredId] = useState<string | null>(null);
   const [corridorAnalysis, setCorridorAnalysis] = useState<CorridorAnalysisResult | null>(null);
   const [signalData, setSignalData] = useState<SignalSummary | null>(null);
-  const [mapHandlers, setMapHandlers] = useState<ReturnType<typeof useCesiumMap> | null>(null);
+  const [mapHandlers, setMapHandlers] = useState<ReturnType<typeof useMapboxMap> | null>(null);
 
-  const handleMapReady = useCallback((handlers: ReturnType<typeof useCesiumMap>) => {
+  const handleMapReady = useCallback((handlers: ReturnType<typeof useMapboxMap>) => {
     setMapHandlers(handlers);
   }, []);
 
@@ -33,9 +33,6 @@ const Index = () => {
       }
       if (params.corridorAnalysis) {
         setCorridorAnalysis(params.corridorAnalysis);
-        if (mapHandlers) {
-          mapHandlers.loadGapZones(params.corridorAnalysis.id);
-        }
       }
       if (params.signals) setSignalData(params.signals);
     },

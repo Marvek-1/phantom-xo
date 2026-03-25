@@ -2,7 +2,7 @@
 // Phantom POE Engine — Shared Types
 // ─────────────────────────────────────────────────────────────
 
-export interface CesiumCameraTarget {
+export interface CameraTarget {
   lat: number;
   lng: number;
   alt: number;
@@ -113,7 +113,7 @@ export interface CorridorAnalysisResult {
 }
 
 export interface MapParams {
-  camera?: CesiumCameraTarget;
+  camera?: CameraTarget;
   corridor?: CorridorTrack;
   corridorAnalysis?: CorridorAnalysisResult;
   signals?: SignalSummary;
