@@ -1,6 +1,10 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
-import { handleCorsPreflight, withCorsHeaders } from "../_shared/cors.ts";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
 
 // ─── Countries ─────────────────────────────────────────────
 const ACLED_COUNTRIES = [
@@ -31,7 +35,7 @@ const MIN_TRUTH = 0.80;
 
 // ─── ACLED Provider ────────────────────────────────────────
 async function ingestACLED(
-  db: ReturnType<typeof createClient>,
+  db: any,
   runId: string,
   daysBack = 30,
 ): Promise<{ rawCount: number; signalCount: number; errors: string[] }> {
@@ -140,7 +144,7 @@ async function ingestACLED(
 
 // ─── DTM Provider ──────────────────────────────────────────
 async function ingestDTM(
-  db: ReturnType<typeof createClient>,
+  db: any,
   runId: string,
 ): Promise<{ rawCount: number; signalCount: number; errors: string[] }> {
   const apiKey = Deno.env.get("DTM_API_KEY");
@@ -213,7 +217,7 @@ async function ingestDTM(
 
 // ─── DHIS2 Provider ────────────────────────────────────────
 async function ingestDHIS2(
-  db: ReturnType<typeof createClient>,
+  db: any,
   runId: string,
 ): Promise<{ rawCount: number; signalCount: number; errors: string[] }> {
   const baseUrl = Deno.env.get("DHIS2_BASE_URL");
