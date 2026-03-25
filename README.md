@@ -340,7 +340,7 @@ The uncertainty is real. The evidence is real. The corridor is inferred — and 
 ## Built by
 
 **MoStar Industries** · African Flame Initiative  
-Lead: Akanimo Idon (Flame) · WHO AFRO OSL Technical Specialist  
+Lead: Flame Architect
 System: `mo-border-phantom-001`  
 Seal: `◉⟁⬡`  
 Workspace: `phantom-poe`
