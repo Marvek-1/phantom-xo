@@ -402,4 +402,4 @@ export const LABEL_LAYER_IDS = [
   "geo-city-labels",
 ];
 
-export const POE_LAYER_IDS = ["official-poes-circle", "official-poes-labels"];
+

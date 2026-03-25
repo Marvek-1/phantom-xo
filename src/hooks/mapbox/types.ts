@@ -7,6 +7,7 @@ export const T = {
   red: "#FF453A",
   blue: "#009ADE",
   teal: "#3DD9C4",
+  text: "#E5E7EB",
 };
 
 export const MAPBOX_TOKEN =
