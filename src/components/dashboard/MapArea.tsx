@@ -9,32 +9,8 @@ interface MapAreaProps {
 
 const MapArea = ({ onMapReady }: MapAreaProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const cesium = useCesiumMap(containerRef);
-  const [coords, setCoords] = useState({ lat: -1.5, lng: 34, alt: 3000 });
-
-  // Add a clipping region based on the loaded project footprint
-  useEffect(() => {
-    if (!cesium.mapReady || !cesium.viewer.current) return;
-    const viewer = cesium.viewer.current;
-    if (viewer.isDestroyed()) return;
-
-    const now = Cesium.JulianDate.now();
-    const polygons = viewer.entities.values.flatMap((entity) => {
-      const hierarchy = entity.polygon?.hierarchy?.getValue(now);
-      const positions = hierarchy instanceof Cesium.PolygonHierarchy ? hierarchy.positions : [];
-      return positions.length ? [new Cesium.ClippingPolygon({ positions })] : [];
-    });
-
-    viewer.scene.globe.clippingPolygons = polygons.length
-      ? new Cesium.ClippingPolygonCollection({ polygons })
-      : undefined;
-
-    return () => {
-      if (!viewer.isDestroyed()) {
-        viewer.scene.globe.clippingPolygons = undefined;
-      }
-    };
-  }, [cesium.mapReady, cesium.viewer, cesium.corridorsMeta]);
+  const mb = useMapboxMap(containerRef);
+  const [coords, setCoords] = useState({ lat: -1.5, lng: 34, zoom: 4 });
 
   // Notify parent when map is ready
   useEffect(() => {
@@ -92,10 +68,10 @@ const MapArea = ({ onMapReady }: MapAreaProps) => {
             </div>
             <div className="text-center">
               <p className="text-xs font-mono text-phantom-green/60 tracking-[0.3em] uppercase">
-                Initializing 3D Globe
+                Initializing Map
               </p>
               <p className="text-[10px] font-mono text-muted-foreground mt-1 tracking-wider">
-                CesiumJS · MapTiler · East Africa
+                Mapbox GL · Satellite · East Africa
               </p>
             </div>
           </div>
@@ -161,7 +137,6 @@ const MapArea = ({ onMapReady }: MapAreaProps) => {
         <div className="absolute bottom-12 left-1/2 -translate-x-1/2 z-10">
           {mb.corridorAnimState?.active ? (
             <div className="bg-card/90 border border-phantom-green/30 rounded-lg backdrop-blur-sm px-5 py-3 flex flex-col gap-2 animate-fade-in-up min-w-[360px]">
-              {/* Top row: stop button + date + percentage */}
               <div className="flex items-center gap-3">
                 <button
                   title="Stop animation"
@@ -177,14 +152,12 @@ const MapArea = ({ onMapReady }: MapAreaProps) => {
                   {Math.round(mb.corridorAnimState.progress * 100)}%
                 </p>
               </div>
-              {/* Progress bar */}
               <div className="h-1.5 bg-border rounded-full overflow-hidden">
                 <div
                   className="h-full bg-gradient-to-r from-blue-500 via-cyan-400 via-lime-400 via-yellow-400 to-red-500 rounded-full transition-all duration-100"
                   style={{ width: `${(mb.corridorAnimState.progress * 100).toFixed(1)}%` }}
                 />
               </div>
-              {/* Detail row: day · week · month · year */}
               <div className="flex items-center justify-between text-[9px] font-mono uppercase tracking-wider text-muted-foreground">
                 <span className="tabular-nums">{mb.corridorAnimState.dayLabel}</span>
                 <span className="text-phantom-green/50">·</span>

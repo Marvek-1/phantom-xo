@@ -41,29 +41,29 @@ function parseOptionalBool(value: string | undefined): boolean | undefined {
   return undefined;
 }
 
-function getBaseStyle(mode: BasemapMode) {
+function getBaseStyle(mode: BasemapMode): string | mapboxgl.StyleSpecification {
   if (mode === "standard") return "mapbox://styles/mapbox/standard";
   if (mode === "standard-satellite") return "mapbox://styles/mapbox/standard-satellite";
 
   return {
-    version: 8,
+    version: 8 as const,
     name: "qgis2web export",
     pitch: 0,
     light: { intensity: 0.2 },
     sources: {
       GoogleSatelliteHybrid_0: {
-        type: "raster",
+        type: "raster" as const,
         tiles: ["https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"],
         tileSize: 256,
       },
       "mapbox-dem": {
-        type: "raster-dem",
+        type: "raster-dem" as const,
         url: "mapbox://mapbox.mapbox-terrain-dem-v1",
         tileSize: 512,
         maxzoom: 14,
       },
       openmaptiles: {
-        type: "vector",
+        type: "vector" as const,
         url: "mapbox://mapbox.mapbox-streets-v8",
       },
     },
@@ -76,13 +76,13 @@ function getBaseStyle(mode: BasemapMode) {
     layers: [
       {
         id: "background",
-        type: "background",
+        type: "background" as const,
         layout: {},
         paint: { "background-color": "#ffffff" },
       },
       {
         id: "lyr_GoogleSatelliteHybrid_0_0",
-        type: "raster",
+        type: "raster" as const,
         source: "GoogleSatelliteHybrid_0",
       },
     ],

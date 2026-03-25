@@ -291,8 +291,9 @@ async function ingestDHIS2(
 
 // ─── Main Handler ──────────────────────────────────────────
 serve(async (req) => {
-  const preflight = handleCorsPreflight(req);
-  if (preflight) return preflight;
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -357,12 +358,12 @@ serve(async (req) => {
       providers: results,
       message: `Ingestion complete: ${totalSignals} signals, ${totalPassed} passed truth filter.`,
     }), {
-      headers: withCorsHeaders({ "Content-Type": "application/json" }),
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
     return new Response(JSON.stringify({ error: (err as Error).message }), {
       status: 500,
-      headers: withCorsHeaders({ "Content-Type": "application/json" }),
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });
