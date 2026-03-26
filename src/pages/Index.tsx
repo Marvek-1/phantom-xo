@@ -5,7 +5,7 @@ import { ChatPanel } from "@/components/dashboard/ChatPanel";
 import { CorridorOverlay } from "@/components/dashboard/CorridorOverlay";
 import { RadarIndicator } from "@/components/dashboard/RadarIndicator";
 import { SignalBadge } from "@/components/dashboard/SignalBadge";
-import { CorridorDetailSidebar } from "@/components/dashboard/CorridorDetailSidebar";
+import { CorridorIntelPanel } from "@/components/dashboard/CorridorIntelPanel";
 import type { CorridorAnalysisResult, SignalSummary, MapParams } from "@/types/phantom";
 import type { useMapboxMap } from "@/hooks/useMapboxMap";
 
@@ -52,10 +52,11 @@ const Index = () => {
         <div className="relative flex-1">
           <MapArea onMapReady={handleMapReady} />
 
-          {/* Corridor detail sidebar */}
-          {selectedCorridor && mapHandlers && (
-            <CorridorDetailSidebar
-              corridor={selectedCorridor}
+          {/* Corridor intelligence sidebar — live Neon data */}
+          {mapHandlers?.selectedCorridorId && (
+            <CorridorIntelPanel
+              corridorId={mapHandlers.selectedCorridorId}
+              corridorName={selectedCorridor?.name}
               onClose={() => mapHandlers.setSelectedCorridorId(null)}
             />
           )}

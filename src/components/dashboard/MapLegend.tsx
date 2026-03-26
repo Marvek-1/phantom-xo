@@ -53,6 +53,7 @@ const LAYER_DEFS = [
   { key: "labels", label: "Geo Labels", color: "#9CA3AF" },
   { key: "officialPOEs", label: "Official POEs", color: "hsl(217, 91%, 60%)" },
   { key: "evidence", label: "Evidence Signals", color: "hsl(var(--phantom-amber))" },
+  { key: "deviationAnalytics", label: "Deviation Heatline", color: "#EF4444" },
 ];
 
 const MapLegend = ({
@@ -113,7 +114,7 @@ const MapLegend = ({
               Phantom Corridors
             </p>
             <LegendItem
-              label="Detected route — risk gradient"
+              label="Detected route \u2014 risk gradient"
               swatch={<GradientBarSwatch />}
             />
             <LegendItem
@@ -127,7 +128,7 @@ const MapLegend = ({
                 Formal Routes
               </p>
               <LegendItem
-                label="Official route — monitored"
+                label="Official route \u2014 monitored"
                 swatch={<FormalLineSwatch />}
               />
               <LegendItem
@@ -163,7 +164,7 @@ const MapLegend = ({
                   <span className="text-xs font-mono text-destructive">{coverageStats.unmonitoredPct}% hidden</span>
                 </div>
                 <p className="text-xs font-mono text-muted-foreground tabular-nums mt-1">
-                  {coverageStats.totalCorridors} corridors · {coverageStats.totalPhantomKm.toLocaleString()} km phantom · {coverageStats.totalFormalKm.toLocaleString()} km formal
+                  {coverageStats.totalCorridors} corridors \u00b7 {coverageStats.totalPhantomKm.toLocaleString()} km phantom \u00b7 {coverageStats.totalFormalKm.toLocaleString()} km formal
                 </p>
               </div>
             )}
@@ -238,7 +239,7 @@ const MapLegend = ({
                   className="w-full text-xs font-mono bg-background border border-border rounded px-2 py-1.5 text-foreground/80"
                   disabled={cascadeActive}
                 >
-                  <option value="">Select corridor…</option>
+                  <option value="">Select corridor\u2026</option>
                   {corridorsMeta.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.name} ({c.risk})
@@ -301,7 +302,7 @@ const MapLegend = ({
                   aria-label="Select corridor for predictive drift analysis"
                   className="w-full text-xs font-mono bg-background border border-border rounded px-2 py-1.5 text-foreground/80"
                 >
-                  <option value="">Select corridor…</option>
+                  <option value="">Select corridor\u2026</option>
                   {corridorsMeta.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.name} ({c.risk})
@@ -343,7 +344,7 @@ const MapLegend = ({
                       </span>
                       <span className="text-muted-foreground">Bearing</span>
                       <span className="text-foreground tabular-nums text-right">
-                        {Math.round(driftResult.bearingDeg)}°
+                        {Math.round(driftResult.bearingDeg)}\u00b0
                       </span>
                     </div>
                     {driftResult.drivers.length > 0 && (
@@ -374,7 +375,7 @@ const MapLegend = ({
   );
 };
 
-/* ── Legend swatch components ── */
+/* \u2500\u2500 Legend swatch components \u2500\u2500 */
 
 function LegendItem({ label, swatch }: { label: string; swatch: React.ReactNode }) {
   return (
