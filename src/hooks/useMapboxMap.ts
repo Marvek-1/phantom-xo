@@ -17,6 +17,11 @@ import { addDriftSources, addDriftLayers, updateDriftData, setDriftVisibility, D
 import type { Vec2 } from "./mapbox/driftMath";
 import { getComputeScoresApiUrl, getPublicApiHeaders, isSupabaseFunctionUrl } from "@/lib/backendEndpoints";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  drawDeviationAnalytics,
+  removeDeviationAnalyticsLayers,
+  toggleDeviationAnalyticsLayers,
+} from "./mapbox/drawDeviationAnalytics";
 
 type BasemapMode = "custom" | "standard" | "standard-satellite";
 type LightPreset = "day" | "dawn" | "dusk" | "night";
@@ -134,13 +139,14 @@ export function useMapboxMap(containerRef: React.RefObject<HTMLDivElement | null
   const corridorGeoRef = useRef<Map<string, Vec2[]>>(new Map());
   const formalGeoRef = useRef<Vec2[][]>([]);
 
-  // Layer visibility
+  // Layer visibility — includes deviationAnalytics
   const [layerVisibility, setLayerVisibility] = useState<Record<string, boolean>>({
     corridors: true,
     borders: true,
     labels: true,
     officialPOEs: true,
     evidence: false,
+    deviationAnalytics: false,
   });
 
   // ── Initialize map ──
@@ -386,6 +392,7 @@ export function useMapboxMap(containerRef: React.RefObject<HTMLDivElement | null
   }, [evidenceVisible]);
 
   const toggleLayer = useCallback((layerName: string) => {
+    const map = mapRef.current;
     const newVisible = !layerVisibility[layerName];
 
     switch (layerName) {
@@ -405,6 +412,11 @@ export function useMapboxMap(containerRef: React.RefObject<HTMLDivElement | null
       case "evidence":
         toggleEvidence();
         return;
+      case "deviationAnalytics":
+        if (map) {
+          toggleDeviationAnalyticsLayers(map, newVisible);
+        }
+        break;
       default:
         return;
     }
@@ -508,27 +520,69 @@ export function useMapboxMap(containerRef: React.RefObject<HTMLDivElement | null
     corridorAnimRef.current?.seek(position);
   }, []);
 
-  // ── Click handler for corridor features ──
+  // ── Click handler for corridor features + empty-space deselect ──
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapReady) return;
 
     const onClick = (e: mapboxgl.MapMouseEvent) => {
       const queryLayers = [...phantomLayerIdsRef.current, "formal-routes-line"].filter(id => map.getLayer(id));
-      if (queryLayers.length === 0) return;
+      if (queryLayers.length === 0) {
+        // No corridor layers exist yet — deselect
+        setSelectedCorridorId(null);
+        return;
+      }
       const features = map.queryRenderedFeatures(e.point, {
         layers: queryLayers,
       });
       if (features.length > 0) {
         const props = features[0].properties;
         const cid = props?.id ?? props?.corridor_id ?? null;
-        if (cid) setSelectedCorridorId(cid);
+        if (cid) {
+          setSelectedCorridorId(cid);
+          return;
+        }
       }
+      // Click on empty space → deselect
+      setSelectedCorridorId(null);
     };
 
     map.on("click", onClick);
     return () => { map.off("click", onClick); };
   }, [mapReady]);
+
+  // ── Selected corridor → draw deviation analytics + auto-drift ──
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady) return;
+
+    if (!selectedCorridorId) {
+      // Deselect: remove deviation layers, clear drift
+      removeDeviationAnalyticsLayers(map);
+      setLayerVisibility((prev) => ({ ...prev, deviationAnalytics: false }));
+      clearDrift();
+      return;
+    }
+
+    // Get corridor geometry from cache
+    const coords = corridorGeoRef.current.get(selectedCorridorId);
+    if (coords && coords.length >= 2) {
+      // Draw deviation heatline + blind spots (async, fire-and-forget)
+      drawDeviationAnalytics(map, selectedCorridorId, coords as number[][])
+        .then((dev) => {
+          if (dev) {
+            setLayerVisibility((prev) => ({ ...prev, deviationAnalytics: true }));
+            console.log(`[Mapbox] Deviation analytics drawn for ${selectedCorridorId}`);
+          }
+        })
+        .catch((err) => {
+          console.warn("[Mapbox] Deviation analytics failed:", err);
+        });
+
+      // Auto-compute drift
+      computeDriftForCorridor(selectedCorridorId);
+    }
+  }, [selectedCorridorId, mapReady]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Tooltip on hover ──
   useEffect(() => {
@@ -563,7 +617,6 @@ export function useMapboxMap(containerRef: React.RefObject<HTMLDivElement | null
       if (props.description) rows.push(`<span style="font-size:10px;color:#9CA3AF;max-width:280px;display:block">${String(props.description).slice(0, 200)}</span>`);
       if (props.poe_type) rows.push(`<span style="font-size:11px">POE Type: ${props.poe_type}</span>`);
       if (props.country) rows.push(`<span style="font-size:11px">Country: ${props.country}</span>`);
-
       return `<div style="display:flex;flex-direction:column;gap:2px;padding:2px;font-family:monospace">${rows.join("")}</div>`;
     }
 
@@ -611,6 +664,7 @@ export function useMapboxMap(containerRef: React.RefObject<HTMLDivElement | null
     if (mapReady) loadAllLayers();
   }, [mapReady, loadAllLayers]);
 
+  // ── Phantom POE pulse animation ──
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapReady) return;
@@ -635,6 +689,16 @@ export function useMapboxMap(containerRef: React.RefObject<HTMLDivElement | null
     rafId = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(rafId);
   }, [mapReady]);
+
+  // ── Cleanup deviation layers on unmount ──
+  useEffect(() => {
+    return () => {
+      const map = mapRef.current;
+      if (map) {
+        removeDeviationAnalyticsLayers(map);
+      }
+    };
+  }, []);
 
   return {
     map: mapRef,
