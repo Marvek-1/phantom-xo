@@ -15,8 +15,7 @@ import { getTemporalRange, type EvidenceSignal, type TemporalRange } from "@/lib
 import { computeDrift, type DriftResult } from "./mapbox/driftEngine";
 import { addDriftSources, addDriftLayers, updateDriftData, setDriftVisibility, DRIFT_LAYER_IDS } from "./mapbox/drawDriftLayers";
 import type { Vec2 } from "./mapbox/driftMath";
-import { getComputeScoresApiUrl, getPublicApiHeaders, isSupabaseFunctionUrl } from "@/lib/backendEndpoints";
-import { supabase } from "@/integrations/supabase/client";
+import { getComputeScoresApiUrl, getPublicApiHeaders } from "@/lib/backendEndpoints";
 import {
   drawDeviationAnalytics,
   removeDeviationAnalyticsLayers,
@@ -94,26 +93,12 @@ function getBaseStyle(mode: BasemapMode): string | mapboxgl.StyleSpecification {
   };
 }
 
-async function getComputeScoresHeaders(url: string): Promise<Record<string, string>> {
-  const headers: Record<string, string> = {
+/** Build headers for compute-scores API — Supabase auth removed, uses public API key only */
+function getComputeScoresHeaders(): Record<string, string> {
+  return {
     "Content-Type": "application/json",
     ...getPublicApiHeaders(),
   };
-
-  if (isSupabaseFunctionUrl(url)) {
-    const apikey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined;
-    if (apikey) headers.apikey = apikey;
-
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-
-    if (session?.access_token) {
-      headers.Authorization = `Bearer ${session.access_token}`;
-    }
-  }
-
-  return headers;
 }
 
 export function useMapboxMap(containerRef: React.RefObject<HTMLDivElement | null>) {
@@ -461,29 +446,31 @@ export function useMapboxMap(containerRef: React.RefObject<HTMLDivElement | null
     // Backend-first: compute and persist canonical drift from live DB signals.
     try {
       const url = getComputeScoresApiUrl();
-      const response = await fetch(url, {
-        method: "POST",
-        headers: await getComputeScoresHeaders(url),
-        body: JSON.stringify({
-          corridorId,
-          corridorCoords: coords,
-          riskClass: risk,
-          windowDays: 30,
-        }),
-      });
-      const data = await response.json().catch(() => ({}));
-      const error = response.ok ? null : { message: data?.error ?? `HTTP ${response.status}` };
+      if (url) {
+        const response = await fetch(url, {
+          method: "POST",
+          headers: getComputeScoresHeaders(),
+          body: JSON.stringify({
+            corridorId,
+            corridorCoords: coords,
+            riskClass: risk,
+            windowDays: 30,
+          }),
+        });
+        const data = await response.json().catch(() => ({}));
+        const error = response.ok ? null : { message: data?.error ?? `HTTP ${response.status}` };
 
-      if (!error && data?.result?.driftField && data?.result?.futureCorridor) {
-        const result = data.result as DriftResult;
-        updateDriftData(map, result);
-        setDriftVisibility(map, true);
-        setDriftResult(result);
-        return;
-      }
+        if (!error && data?.result?.driftField && data?.result?.futureCorridor) {
+          const result = data.result as DriftResult;
+          updateDriftData(map, result);
+          setDriftVisibility(map, true);
+          setDriftResult(result);
+          return;
+        }
 
-      if (error) {
-        console.warn("[Mapbox] compute-scores fallback:", error.message);
+        if (error) {
+          console.warn("[Mapbox] compute-scores fallback:", error.message);
+        }
       }
     } catch (err) {
       console.warn("[Mapbox] compute-scores fallback:", err);
