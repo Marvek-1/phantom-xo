@@ -15,12 +15,17 @@ import { getTemporalRange, type EvidenceSignal, type TemporalRange } from "@/lib
 import { computeDrift, type DriftResult } from "./mapbox/driftEngine";
 import { addDriftSources, addDriftLayers, updateDriftData, setDriftVisibility, DRIFT_LAYER_IDS } from "./mapbox/drawDriftLayers";
 import type { Vec2 } from "./mapbox/driftMath";
+<<<<<<< Updated upstream
 import { getComputeScoresApiUrl, getPublicApiHeaders } from "@/lib/backendEndpoints";
 import {
   drawDeviationAnalytics,
   removeDeviationAnalyticsLayers,
   toggleDeviationAnalyticsLayers,
 } from "./mapbox/drawDeviationAnalytics";
+=======
+import { getComputeScoresApiUrl, getPublicApiHeaders, isSupabaseFunctionUrl } from "@/lib/backendEndpoints";
+import { supabase } from "@/integrations/neon/client";
+>>>>>>> Stashed changes
 
 type BasemapMode = "custom" | "standard" | "standard-satellite";
 type LightPreset = "day" | "dawn" | "dusk" | "night";

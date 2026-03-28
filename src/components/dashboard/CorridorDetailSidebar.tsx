@@ -1,6 +1,10 @@
 import { useEffect, useState } from "react";
 import { X, MapPin, Calendar, TrendingUp, AlertTriangle, ArrowRight, Shield, ShieldOff } from "lucide-react";
+<<<<<<< Updated upstream
 import { queryNeon } from "@/integrations/neon/client";
+=======
+import { supabase } from "@/integrations/neon/client";
+>>>>>>> Stashed changes
 
 interface CorridorMeta {
   id: string;
@@ -197,11 +201,18 @@ export function CorridorDetailSidebar({ corridor, onClose }: Props) {
           <button
             key={t}
             onClick={() => setTab(t)}
+<<<<<<< Updated upstream
             className={`flex-1 px-3 py-2 text-xs font-mono transition-colors ${
               tab === t
                 ? "text-foreground border-b-2 border-phantom-green"
                 : "text-muted-foreground hover:text-foreground"
             }`}
+=======
+            className={`px-3 py-1.5 text-sm font-mono rounded transition-colors ${tab === t
+                ? "bg-primary/15 text-primary"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
+              }`}
+>>>>>>> Stashed changes
           >
             {t === "flows" ? `Flows (${flows.length})` :
              t === "events" ? `Events (${events.length})` :
@@ -281,13 +292,12 @@ export function CorridorDetailSidebar({ corridor, onClose }: Props) {
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-sm font-medium text-foreground">{xp.name}</span>
                   <span
-                    className={`text-xs font-mono px-2 py-0.5 rounded ${
-                      xp.status === "active"
+                    className={`text-xs font-mono px-2 py-0.5 rounded ${xp.status === "active"
                         ? "bg-primary/15 text-phantom-teal"
                         : xp.status === "partially_restricted"
-                        ? "bg-accent/15 text-phantom-amber"
-                        : "bg-destructive/15 text-phantom-red"
-                    }`}
+                          ? "bg-accent/15 text-phantom-amber"
+                          : "bg-destructive/15 text-phantom-red"
+                      }`}
                   >
                     {xp.status}
                   </span>

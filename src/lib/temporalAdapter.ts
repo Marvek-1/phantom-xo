@@ -1,3 +1,4 @@
+<<<<<<< Updated upstream
 /**
  * MoStar Phantom XO — Temporal Adapter
  * moscript://codex/v1
@@ -8,6 +9,10 @@
  */
 
 import { queryNeon } from "@/integrations/neon/client";
+=======
+import { supabase } from "@/integrations/neon/client";
+import { getPublicApiHeaders, getTemporalApiUrl, isSupabaseFunctionUrl } from "@/lib/backendEndpoints";
+>>>>>>> Stashed changes
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -170,8 +175,8 @@ async function loadCorridorAnchors() {
           typeof props.corridor_id === "string"
             ? props.corridor_id
             : typeof props.id === "string"
-            ? props.id
-            : "";
+              ? props.id
+              : "";
         const label = typeof props.name === "string" ? props.name : corridorId;
 
         if (!corridorId || !feature.geometry?.type) continue;
