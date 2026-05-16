@@ -1,0 +1,36 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(wsl -e bash -c \"cd ~/MoStar/Phantom/phantom-xo && git remote -v && echo '---' && git status --short && echo '---' && ls\")",
+      "Bash(wsl -e bash -c \"cat ~/MoStar/Phantom/phantom-xo/vercel.json\")",
+      "Bash(wsl -e bash -c \"gh auth status 2>&1 || echo 'not logged in'\")",
+      "Bash(wsl -e bash -c \"curl -s -o /dev/null -w '%{http_code}' -u 'Mo-101:Creamson123@#$' https://api.github.com/user\")",
+      "Bash(wsl -e bash -c \"vercel whoami 2>&1 || echo 'vercel not logged in'\")",
+      "Bash(wsl -e bash -c \"cat ~/MoStar/Phantom/phantom-xo/.vercel/project.json 2>/dev/null || echo 'no .vercel/project.json'\")",
+      "mcp__claude_ai_Vercel__deploy_to_vercel",
+      "Bash(wsl -e bash -c \"find ~/MoStar -name 'route.ts' -path '*/analytics/*' 2>/dev/null\")",
+      "Bash(wsl -e bash -c \"find ~/MoStar -name 'route.ts' 2>/dev/null | head -20\")",
+      "Bash(wsl -e bash -c \"gh repo list Mo-101 --limit 20 2>&1\")",
+      "Bash(wsl -e bash -c \"cd ~/MoStar && gh repo clone Mo-101/The-Phantom 2>&1 | tail -5\")",
+      "Bash(wsl -e bash -c \"cat ~/MoStar/The-Phantom/app/api/analytics/route.ts\")",
+      "Read(//home/idona/MoStar/The-Phantom/app/api/analytics/**)",
+      "Read(///wsl.localhost/Ubuntu/home/idona/MoStar/The-Phantom/app/api/analytics/**)",
+      "Bash(wsl -e bash -c \"cd ~/MoStar/The-Phantom && git add app/api/analytics/route.ts && git commit -m 'fix: non-null assertion on soulAccum index to resolve TS build error' && git push origin main 2>&1\")",
+      "Bash(wsl -e bash -c \"cd ~/MoStar/The-Phantom && git -c user.email='akiniobong10@gmail.com' -c user.name='Mo-101' commit -m 'fix: non-null assertion on soulAccum index to resolve TS build error' && git push origin main 2>&1\")",
+      "Read(//home/idona/MoStar/The-Phantom/**)",
+      "Read(///wsl.localhost/Ubuntu/home/idona/MoStar/The-Phantom/**)",
+      "Read(///wsl.localhost/Ubuntu/home/idona/MoStar/**)",
+      "Read(///wsl.localhost/Ubuntu/home/idona/**)",
+      "Read(///wsl.localhost/Ubuntu//**)",
+      "Read(//home/idona/MoStar/The-Phantom/src/hooks/mapbox/**)",
+      "Read(///wsl.localhost/Ubuntu/home/idona/MoStar/The-Phantom/src/hooks/mapbox/**)",
+      "Read(///wsl.localhost/Ubuntu/home/idona/MoStar/Phantom/phantom-xo/**)",
+      "Bash(xargs grep *)",
+      "Read(///wsl.localhost/Ubuntu/home/idona/MoStar/Phantom/phantom-xo/src/hooks/**)"
+    ],
+    "additionalDirectories": [
+      "\\home\\idona\\MoStar\\The-Phantom\\app\\api\\analytics",
+      "\\\\wsl.localhost\\Ubuntu\\home\\idona\\MoStar\\The-Phantom\\app\\api\\analytics"
+    ]
+  }
+}
