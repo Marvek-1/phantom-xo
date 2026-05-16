@@ -4,7 +4,15 @@ import "mapbox-gl/dist/mapbox-gl.css";
 import type { MapParams, CameraTarget } from "@/types/phantom";
 import { MAPBOX_TOKEN } from "./mapbox/types";
 import type { CorridorMeta, MapboxDrawContext } from "./mapbox/types";
-import { drawCorridors, CORRIDOR_LAYER_IDS, BORDER_LAYER_IDS, LABEL_LAYER_IDS, type CoverageStats } from "./mapbox/drawCorridors";
+import {
+  drawCorridors,
+  CORRIDOR_LAYER_IDS,
+  CORRIDOR_DETAIL_LAYER_IDS,
+  CORRIDOR_LABEL_LAYER_IDS,
+  BORDER_LAYER_IDS,
+  LABEL_LAYER_IDS,
+  type CoverageStats,
+} from "./mapbox/drawCorridors";
 import { drawBorders } from "./mapbox/drawBorders";
 import { drawGeoLabels } from "./mapbox/drawGeoLabels";
 import { drawEvidenceLayer, toggleEvidenceLayer } from "./mapbox/drawEvidenceLayer";
@@ -112,13 +120,13 @@ function getComputeScoresHeaders(): Record<string, string> {
 export function useMapboxMap(containerRef: React.RefObject<HTMLDivElement | null>) {
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const [mapReady, setMapReady] = useState(false);
-  const [officialPOEsVisible, setOfficialPOEsVisible] = useState(true);
+  const [officialPOEsVisible, setOfficialPOEsVisible] = useState(false);
   const poesLoadedRef = useRef(false);
 
   const [corridorsMeta, setCorridorsMeta] = useState<CorridorMeta[]>([]);
   const [corridorsLoaded, setCorridorsLoaded] = useState(false);
   const [coverageStats, setCoverageStats] = useState<CoverageStats | null>(null);
-  const [evidenceVisible, setEvidenceVisible] = useState(true);
+  const [evidenceVisible, setEvidenceVisible] = useState(false);
   const [cascadeState, setCascadeState] = useState<CascadeState | null>(null);
   const [temporalRange, setTemporalRange] = useState<TemporalRange | null>(null);
   const [selectedCorridorId, setSelectedCorridorId] = useState<string | null>(null);
@@ -128,8 +136,8 @@ export function useMapboxMap(containerRef: React.RefObject<HTMLDivElement | null
   const corridorAnimRef = useRef<CorridorAnimator | null>(null);
   const [corridorAnimState, setCorridorAnimState] = useState<CorridorAnimState | null>(null);
   const phantomLayerIdsRef = useRef<string[]>([]);
-  const historicalEvidenceVisibleRef = useRef<boolean>(true);
-  const historicalEvidenceLayerVisRef = useRef<boolean>(true);
+  const historicalEvidenceVisibleRef = useRef<boolean>(false);
+  const historicalEvidenceLayerVisRef = useRef<boolean>(false);
   const [driftResult, setDriftResult] = useState<DriftResult | null>(null);
   const corridorGeoRef = useRef<Map<string, Vec2[]>>(new Map());
   const formalGeoRef = useRef<Vec2[][]>([]);
@@ -168,12 +176,12 @@ export function useMapboxMap(containerRef: React.RefObject<HTMLDivElement | null
   // Layer visibility — includes deviationAnalytics
   const [layerVisibility, setLayerVisibility] = useState<Record<string, boolean>>({
     corridors: true,
-    borders: true,
-    labels: true,
-    officialPOEs: true,
-    evidence: true,
+    borders: false,
+    labels: false,
+    officialPOEs: false,
+    evidence: false,
     deviationAnalytics: false,
-    logisticsRoutes: true,
+    logisticsRoutes: false,
   });
 
   // ── Initialize map ──
@@ -354,8 +362,8 @@ export function useMapboxMap(containerRef: React.RefObject<HTMLDivElement | null
         { startDate: range.min, endDate: range.max }
       );
 
-      // Make evidence visible immediately (default ON)
-      toggleEvidenceLayer(ctx.map, true);
+      // Keep default map clean: routes only. Evidence/details are opt-in toggles.
+      toggleEvidenceLayer(ctx.map, false);
 
       cascadeEngineRef.current = createCascadeEngine(ctx.map, data, featureIds);
 
@@ -381,8 +389,12 @@ export function useMapboxMap(containerRef: React.RefObject<HTMLDivElement | null
       setDriftVisibility(ctx.map, false);
 
       setCorridorsLoaded(true);
-      console.log(`[Mapbox] All layers loaded: ${meta.length} corridors, ${data.length} evidence signals (VISIBLE)`);
-      console.log(`[Mapbox] Evidence signals are now visible on map`);
+      setLayerGroupVisibility(BORDER_LAYER_IDS, false);
+      setLayerGroupVisibility(LABEL_LAYER_IDS, false);
+      setLayerGroupVisibility(CORRIDOR_LABEL_LAYER_IDS, false);
+      setLayerGroupVisibility(CORRIDOR_DETAIL_LAYER_IDS, false);
+
+      console.log(`[Mapbox] All layers loaded: ${meta.length} corridors, ${data.length} evidence signals (hidden by default)`);
       console.log(`[Mapbox] Click "Animate Corridors" button (bottom center) to play corridor animation`);
       console.log(`[Mapbox] Use Legend > Cascade Replay to play evidence cascade`);
     } catch (err) {
@@ -487,10 +499,10 @@ export function useMapboxMap(containerRef: React.RefObject<HTMLDivElement | null
         setLayerGroupVisibility(BORDER_LAYER_IDS, newVisible);
         break;
       case "labels":
-        setLayerGroupVisibility(LABEL_LAYER_IDS, newVisible);
+        setLayerGroupVisibility([...LABEL_LAYER_IDS, ...CORRIDOR_LABEL_LAYER_IDS], newVisible);
         break;
       case "officialPOEs":
-        setLayerGroupVisibility(POE_LAYER_IDS, newVisible);
+        setLayerGroupVisibility([...POE_LAYER_IDS, ...CORRIDOR_DETAIL_LAYER_IDS], newVisible);
         setOfficialPOEsVisible(newVisible);
         break;
       case "evidence":
@@ -665,22 +677,19 @@ export function useMapboxMap(containerRef: React.RefObject<HTMLDivElement | null
     // Get corridor geometry from cache
     const coords = corridorGeoRef.current.get(selectedCorridorId);
     if (coords && coords.length >= 2) {
-      // Draw deviation heatline + blind spots (async, fire-and-forget)
+      // Draw deviation heatline + blind spots, but keep it behind the toggle by default.
       drawDeviationAnalytics(map, selectedCorridorId, coords as number[][])
         .then((dev) => {
           if (dev) {
-            setLayerVisibility((prev) => ({ ...prev, deviationAnalytics: true }));
+            toggleDeviationAnalyticsLayers(map, layerVisibility.deviationAnalytics ?? false);
             console.log(`[Mapbox] Deviation analytics drawn for ${selectedCorridorId}`);
           }
         })
         .catch((err) => {
           console.warn("[Mapbox] Deviation analytics failed:", err);
         });
-
-      // Auto-compute drift
-      computeDriftForCorridor(selectedCorridorId);
     }
-  }, [selectedCorridorId, mapReady, mode]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [selectedCorridorId, mapReady, mode, layerVisibility.deviationAnalytics]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const map = mapRef.current;
@@ -695,7 +704,7 @@ export function useMapboxMap(containerRef: React.RefObject<HTMLDivElement | null
           return;
         }
         drawLogisticsRoutes(map, routes);
-        toggleLogisticsRoutes(map, layerVisibility.logisticsRoutes ?? true);
+        toggleLogisticsRoutes(map, layerVisibility.logisticsRoutes ?? false);
         console.log(`[Mapbox] Logistics routes loaded: ${routes.length} for ${selectedCorridorId}`);
       })
       .catch((err) => {

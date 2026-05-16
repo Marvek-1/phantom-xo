@@ -204,6 +204,7 @@ export async function drawCorridors(ctx: MapboxDrawContext): Promise<DrawCorrido
     type: "symbol",
     source: "phantom-labels",
     layout: {
+      visibility: "none",
       "text-field": ["concat", ["get", "name"], "\n", ["get", "risk_class"], " · ", ["to-string", ["get", "score"]]],
       "text-font": ["Open Sans Bold"],
       "text-size": 10,
@@ -297,6 +298,7 @@ export async function drawCorridors(ctx: MapboxDrawContext): Promise<DrawCorrido
     type: "symbol",
     source: "formal-labels",
     layout: {
+      visibility: "none",
       "text-field": ["get", "label"],
       "text-font": ["Open Sans Bold"],
       "text-size": 9,
@@ -326,6 +328,7 @@ export async function drawCorridors(ctx: MapboxDrawContext): Promise<DrawCorrido
       id: "corridor-nodes-circle",
       type: "circle",
       source: "corridor-nodes",
+      layout: { visibility: "none" },
       paint: {
         "circle-radius": [
           "match", ["get", "node_type"],
@@ -344,6 +347,7 @@ export async function drawCorridors(ctx: MapboxDrawContext): Promise<DrawCorrido
       type: "symbol",
       source: "corridor-nodes",
       layout: {
+        visibility: "none",
         "text-field": ["get", "name"],
         "text-font": ["Open Sans Regular"],
         "text-size": 9,
@@ -369,6 +373,7 @@ export async function drawCorridors(ctx: MapboxDrawContext): Promise<DrawCorrido
       id: "formal-gates-circle",
       type: "circle",
       source: "formal-gates",
+      layout: { visibility: "none" },
       paint: {
         "circle-radius": 6,
         "circle-color": FORMAL_BLUE,
@@ -388,6 +393,7 @@ export async function drawCorridors(ctx: MapboxDrawContext): Promise<DrawCorrido
       id: "iom-fmps-circle",
       type: "circle",
       source: "iom-fmps",
+      layout: { visibility: "none" },
       paint: {
         "circle-radius": 6,
         "circle-color": "#3DD9C4",
@@ -407,6 +413,7 @@ export async function drawCorridors(ctx: MapboxDrawContext): Promise<DrawCorrido
       id: "phantom-poes-circle",
       type: "circle",
       source: "phantom-poes",
+      layout: { visibility: "none" },
       paint: {
         "circle-radius": 7,
         "circle-color": "#FFD700",
@@ -419,6 +426,7 @@ export async function drawCorridors(ctx: MapboxDrawContext): Promise<DrawCorrido
       type: "symbol",
       source: "phantom-poes",
       layout: {
+        visibility: "none",
         "text-field": ["get", "name"],
         "text-font": ["Open Sans Bold"],
         "text-size": 9,
@@ -462,6 +470,7 @@ export async function drawCorridors(ctx: MapboxDrawContext): Promise<DrawCorrido
     id: "ituri-crisis-nodes-circle",
     type: "circle",
     source: "ituri-crisis-nodes",
+    layout: { visibility: "none" },
     paint: {
       "circle-radius": [
         "match",
@@ -495,6 +504,7 @@ export async function drawCorridors(ctx: MapboxDrawContext): Promise<DrawCorrido
     type: "symbol",
     source: "ituri-crisis-nodes",
     layout: {
+      visibility: "none",
       "text-field": ["get", "name"],
       "text-font": ["Open Sans Bold"],
       "text-size": 10,
@@ -545,22 +555,27 @@ export async function drawCorridors(ctx: MapboxDrawContext): Promise<DrawCorrido
 
 // Dynamic layer IDs populated at draw time
 export let CORRIDOR_LAYER_IDS: string[] = [];
+export const CORRIDOR_LABEL_LAYER_IDS = [
+  "phantom-corridor-labels",
+  "formal-route-labels",
+  "corridor-nodes-labels",
+  "phantom-poes-labels",
+  "ituri-crisis-nodes-labels",
+];
+
+export const CORRIDOR_DETAIL_LAYER_IDS = [
+  "corridor-nodes-circle",
+  "formal-gates-circle",
+  "iom-fmps-circle",
+  "phantom-poes-circle",
+  "ituri-crisis-nodes-circle",
+];
 
 export function setCorridorLayerIds(phantomIds: string[]) {
   CORRIDOR_LAYER_IDS = [
     ...phantomIds,
     "ituri-crisis-glow",
-    "phantom-corridor-labels",
     "formal-routes-line",
-    "formal-route-labels",
-    "corridor-nodes-circle",
-    "corridor-nodes-labels",
-    "formal-gates-circle",
-    "iom-fmps-circle",
-    "phantom-poes-circle",
-    "phantom-poes-labels",
-    "ituri-crisis-nodes-circle",
-    "ituri-crisis-nodes-labels",
   ];
 }
 
