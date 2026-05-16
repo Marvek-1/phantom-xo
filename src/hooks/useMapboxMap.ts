@@ -670,7 +670,9 @@ export function useMapboxMap(containerRef: React.RefObject<HTMLDivElement | null
     if (!selectedCorridorId) {
       // Deselect: remove deviation layers, clear drift
       removeDeviationAnalyticsLayers(map);
-      removeLogisticsRoutes(map);
+      if (!layerVisibility.logisticsRoutes) {
+        removeLogisticsRoutes(map);
+      }
       setLayerVisibility((prev) => ({ ...prev, deviationAnalytics: false }));
       clearDrift();
       return;
@@ -691,14 +693,21 @@ export function useMapboxMap(containerRef: React.RefObject<HTMLDivElement | null
           console.warn("[Mapbox] Deviation analytics failed:", err);
         });
     }
-  }, [selectedCorridorId, mapReady, mode, layerVisibility.deviationAnalytics]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [selectedCorridorId, mapReady, mode, layerVisibility.deviationAnalytics, layerVisibility.logisticsRoutes]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !mapReady || !selectedCorridorId) return;
+    if (!map || !mapReady) return;
+
+    const corridorIdForRoutes = selectedCorridorId ?? ITURI_CRISIS_CORRIDOR.id;
+
+    if (!layerVisibility.logisticsRoutes && !selectedCorridorId) {
+      toggleLogisticsRoutes(map, false);
+      return;
+    }
 
     let cancelled = false;
-    fetchLogisticsRoutes(selectedCorridorId)
+    fetchLogisticsRoutes(corridorIdForRoutes)
       .then((routes) => {
         if (cancelled) return;
         if (routes.length === 0) {
@@ -707,7 +716,7 @@ export function useMapboxMap(containerRef: React.RefObject<HTMLDivElement | null
         }
         drawLogisticsRoutes(map, routes);
         toggleLogisticsRoutes(map, layerVisibility.logisticsRoutes ?? false);
-        console.log(`[Mapbox] Logistics routes loaded: ${routes.length} for ${selectedCorridorId}`);
+        console.log(`[Mapbox] Logistics routes loaded: ${routes.length} for ${corridorIdForRoutes}`);
       })
       .catch((err) => {
         console.warn("[Mapbox] Logistics routes unavailable:", err);
