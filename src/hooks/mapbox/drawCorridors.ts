@@ -373,7 +373,6 @@ export async function drawCorridors(ctx: MapboxDrawContext): Promise<DrawCorrido
       id: "formal-gates-circle",
       type: "circle",
       source: "formal-gates",
-      layout: { visibility: "none" },
       paint: {
         "circle-radius": 6,
         "circle-color": FORMAL_BLUE,
@@ -393,7 +392,6 @@ export async function drawCorridors(ctx: MapboxDrawContext): Promise<DrawCorrido
       id: "iom-fmps-circle",
       type: "circle",
       source: "iom-fmps",
-      layout: { visibility: "none" },
       paint: {
         "circle-radius": 6,
         "circle-color": "#3DD9C4",
@@ -565,10 +563,13 @@ export const CORRIDOR_LABEL_LAYER_IDS = [
 
 export const CORRIDOR_DETAIL_LAYER_IDS = [
   "corridor-nodes-circle",
-  "formal-gates-circle",
-  "iom-fmps-circle",
   "phantom-poes-circle",
   "ituri-crisis-nodes-circle",
+];
+
+export const CORRIDOR_OFFICIAL_POINT_LAYER_IDS = [
+  "formal-gates-circle",
+  "iom-fmps-circle",
 ];
 
 export function setCorridorLayerIds(phantomIds: string[]) {

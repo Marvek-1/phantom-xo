@@ -9,6 +9,7 @@ import {
   CORRIDOR_LAYER_IDS,
   CORRIDOR_DETAIL_LAYER_IDS,
   CORRIDOR_LABEL_LAYER_IDS,
+  CORRIDOR_OFFICIAL_POINT_LAYER_IDS,
   BORDER_LAYER_IDS,
   LABEL_LAYER_IDS,
   type CoverageStats,
@@ -16,7 +17,7 @@ import {
 import { drawBorders } from "./mapbox/drawBorders";
 import { drawGeoLabels } from "./mapbox/drawGeoLabels";
 import { drawEvidenceLayer, toggleEvidenceLayer } from "./mapbox/drawEvidenceLayer";
-import { drawOfficialPOEs, POE_LAYER_IDS } from "./mapbox/drawOfficialPOEs";
+import { drawOfficialPOEs, POE_LABEL_LAYER_IDS, POE_POINT_LAYER_IDS } from "./mapbox/drawOfficialPOEs";
 import { createCascadeEngine, type CascadeState } from "./mapbox/cascadeEngine";
 import { createCorridorAnimator, type CorridorAnimState, type CorridorAnimator } from "./mapbox/corridorAnimator";
 import { getTemporalRange, type EvidenceSignal, type TemporalRange } from "@/lib/temporalAdapter";
@@ -120,7 +121,7 @@ function getComputeScoresHeaders(): Record<string, string> {
 export function useMapboxMap(containerRef: React.RefObject<HTMLDivElement | null>) {
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const [mapReady, setMapReady] = useState(false);
-  const [officialPOEsVisible, setOfficialPOEsVisible] = useState(false);
+  const [officialPOEsVisible, setOfficialPOEsVisible] = useState(true);
   const poesLoadedRef = useRef(false);
 
   const [corridorsMeta, setCorridorsMeta] = useState<CorridorMeta[]>([]);
@@ -178,7 +179,7 @@ export function useMapboxMap(containerRef: React.RefObject<HTMLDivElement | null
     corridors: true,
     borders: false,
     labels: false,
-    officialPOEs: false,
+    officialPOEs: true,
     evidence: false,
     deviationAnalytics: false,
     logisticsRoutes: false,
@@ -393,6 +394,7 @@ export function useMapboxMap(containerRef: React.RefObject<HTMLDivElement | null
       setLayerGroupVisibility(LABEL_LAYER_IDS, false);
       setLayerGroupVisibility(CORRIDOR_LABEL_LAYER_IDS, false);
       setLayerGroupVisibility(CORRIDOR_DETAIL_LAYER_IDS, false);
+      setLayerGroupVisibility(CORRIDOR_OFFICIAL_POINT_LAYER_IDS, true);
 
       console.log(`[Mapbox] All layers loaded: ${meta.length} corridors, ${data.length} evidence signals (hidden by default)`);
       console.log(`[Mapbox] Click "Animate Corridors" button (bottom center) to play corridor animation`);
@@ -499,10 +501,10 @@ export function useMapboxMap(containerRef: React.RefObject<HTMLDivElement | null
         setLayerGroupVisibility(BORDER_LAYER_IDS, newVisible);
         break;
       case "labels":
-        setLayerGroupVisibility([...LABEL_LAYER_IDS, ...CORRIDOR_LABEL_LAYER_IDS], newVisible);
+        setLayerGroupVisibility([...LABEL_LAYER_IDS, ...CORRIDOR_LABEL_LAYER_IDS, ...POE_LABEL_LAYER_IDS], newVisible);
         break;
       case "officialPOEs":
-        setLayerGroupVisibility([...POE_LAYER_IDS, ...CORRIDOR_DETAIL_LAYER_IDS], newVisible);
+        setLayerGroupVisibility([...POE_POINT_LAYER_IDS, ...CORRIDOR_OFFICIAL_POINT_LAYER_IDS], newVisible);
         setOfficialPOEsVisible(newVisible);
         break;
       case "evidence":

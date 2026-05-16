@@ -7,6 +7,11 @@ export const POE_LAYER_IDS = [
   "official-poes-outline",
   "official-poes-label",
 ];
+export const POE_POINT_LAYER_IDS = [
+  "official-poes-circle",
+  "official-poes-outline",
+];
+export const POE_LABEL_LAYER_IDS = ["official-poes-label"];
 
 interface POERow {
   name: string;
@@ -138,6 +143,7 @@ export async function drawOfficialPOEs(ctx: MapboxDrawContext): Promise<void> {
     type: "symbol",
     source: "official-poes",
     layout: {
+      visibility: "none",
       "text-field": ["concat", ["get", "name"], " ", ["get", "country"]],
       "text-font": ["Open Sans Semibold", "Arial Unicode MS Bold"],
       "text-size": 10,
