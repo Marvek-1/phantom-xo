@@ -564,12 +564,12 @@ export const CORRIDOR_LABEL_LAYER_IDS = [
 export const CORRIDOR_DETAIL_LAYER_IDS = [
   "corridor-nodes-circle",
   "phantom-poes-circle",
-  "ituri-crisis-nodes-circle",
 ];
 
 export const CORRIDOR_OFFICIAL_POINT_LAYER_IDS = [
   "formal-gates-circle",
   "iom-fmps-circle",
+  "ituri-crisis-nodes-circle",
 ];
 
 export function setCorridorLayerIds(phantomIds: string[]) {

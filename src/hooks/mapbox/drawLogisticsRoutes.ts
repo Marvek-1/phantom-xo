@@ -6,11 +6,16 @@ import type {
 
 const SOURCE_ID = "logistics-routes";
 
-export const LOGISTICS_LAYER_IDS = [
+export const LOGISTICS_ROUTE_LINE_LAYER_IDS = [
+  "logistics-routes-primary-highlight",
   "logistics-routes-lines-primary",
   "logistics-routes-lines-alternate",
   "logistics-routes-lines-contingency",
   "logistics-routes-lines-blocked",
+];
+
+export const LOGISTICS_LAYER_IDS = [
+  ...LOGISTICS_ROUTE_LINE_LAYER_IDS,
   "logistics-routes-waypoints",
   "logistics-routes-waypoint-labels",
 ];
@@ -27,6 +32,7 @@ function routesToGeoJSON(routes: LogisticsRouteWithWaypoints[]): GeoJSON.Feature
 
   for (const route of routes) {
     const waypoints = [...route.waypoints].sort((a, b) => a.seq - b.seq);
+    const waypointChain = waypoints.map((waypoint) => waypoint.name).join(" -> ");
     if (waypoints.length >= 2) {
       features.push({
         type: "Feature",
@@ -42,6 +48,19 @@ function routesToGeoJSON(routes: LogisticsRouteWithWaypoints[]): GeoJSON.Feature
           total_km: route.total_km,
           estimated_hours: route.estimated_hours,
           blocked_reason: route.blocked_reason,
+          purpose: route.purpose,
+          cold_chain_capable: route.cold_chain_capable,
+          modes: route.modes.join(" -> "),
+          waypoint_count: waypoints.length,
+          waypoint_chain: waypointChain,
+          movement_summary:
+            route.classification === "PRIMARY"
+              ? "Recommended response movement. Prioritizes speed, risk reduction, and cold-chain continuity."
+              : route.classification === "ALTERNATE"
+                ? "Bulk movement option. Slower route for non-cold-chain or high-volume supplies."
+                : route.classification === "BLOCKED"
+                  ? "Rejected movement path. Displayed for transparency because current evidence makes transit unsafe."
+                  : "Contingency movement path for changed operating conditions.",
         },
         geometry: {
           type: "LineString",
@@ -56,6 +75,7 @@ function routesToGeoJSON(routes: LogisticsRouteWithWaypoints[]): GeoJSON.Feature
         id: waypoint.id,
         properties: {
           route_id: route.id,
+          route_name: route.name,
           kind: "waypoint",
           classification: route.classification,
           waypoint_type: waypoint.waypoint_type,
@@ -68,6 +88,10 @@ function routesToGeoJSON(routes: LogisticsRouteWithWaypoints[]): GeoJSON.Feature
           operator: waypoint.operator,
           notes: waypoint.notes,
           color: route.style_color,
+          movement_summary:
+            waypoint.leg_mode && waypoint.leg_km != null
+              ? `${waypoint.leg_mode} leg into ${waypoint.name}: ${Math.round(waypoint.leg_km)} km, ${waypoint.leg_hours ?? "?"}h.`
+              : `Waypoint ${waypoint.seq + 1} on ${route.name}.`,
         },
         geometry: {
           type: "Point",
@@ -111,6 +135,26 @@ export function drawLogisticsRoutes(
         "line-width": ["interpolate", ["linear"], ["zoom"], 3, 1.4, 6, 2.6, 10, 4.2],
         "line-opacity": cls === "BLOCKED" ? 0.55 : 0.94,
         "line-dasharray": DASH_BY_CLASS[cls],
+      },
+    });
+  }
+
+  if (!map.getLayer("logistics-routes-primary-highlight")) {
+    map.addLayer({
+      id: "logistics-routes-primary-highlight",
+      type: "line",
+      source: SOURCE_ID,
+      filter: [
+        "all",
+        ["==", ["get", "kind"], "route_line"],
+        ["==", ["get", "classification"], "PRIMARY"],
+      ],
+      layout: { "line-cap": "round", "line-join": "round" },
+      paint: {
+        "line-color": "#86efac",
+        "line-width": ["interpolate", ["linear"], ["zoom"], 3, 5, 6, 8, 10, 12],
+        "line-opacity": 0.42,
+        "line-blur": 3,
       },
     });
   }

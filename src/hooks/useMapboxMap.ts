@@ -34,6 +34,7 @@ import {
 import { fetchLogisticsRoutes } from "@/integrations/neon/api/logistics";
 import {
   drawLogisticsRoutes,
+  LOGISTICS_ROUTE_LINE_LAYER_IDS,
   removeLogisticsRoutes,
   toggleLogisticsRoutes,
 } from "./mapbox/drawLogisticsRoutes";
@@ -651,6 +652,10 @@ export function useMapboxMap(containerRef: React.RefObject<HTMLDivElement | null
         if (cid) {
           console.log(`[Selection] corridor click raw=${String(cid)} evidenceMatches=${evidenceDataRef.current.filter((s) => String(s.cid) === String(cid)).length}`);
           setSelectedCorridorId(cid);
+          if (String(cid) === ITURI_CRISIS_CORRIDOR.id) {
+            setLayerVisibility((prev) => ({ ...prev, logisticsRoutes: true }));
+            toggleLogisticsRoutes(map, true);
+          }
           return;
         }
       }
@@ -783,8 +788,20 @@ export function useMapboxMap(containerRef: React.RefObject<HTMLDivElement | null
       if (props.risk_class) rows.push(`<span style="font-size:11px">Risk: <b>${props.risk_class}</b></span>`);
       if (props.composite_score != null) rows.push(`<span style="font-size:11px">Score: <b>${Number(props.composite_score).toFixed(1)}</b></span>`);
       if (props.distance_km != null) rows.push(`<span style="font-size:11px">Distance: <b>${Number(props.distance_km).toFixed(0)} km</b></span>`);
+      if (props.total_km != null) rows.push(`<span style="font-size:11px">Distance: <b>${Number(props.total_km).toFixed(0)} km</b></span>`);
       if (props.mode) rows.push(`<span style="font-size:11px">Mode: ${props.mode}</span>`);
       if (props.description) rows.push(`<span style="font-size:10px;color:#9CA3AF;max-width:280px;display:block">${String(props.description).slice(0, 200)}</span>`);
+      if (props.kind === "route_line") {
+        rows.push(`<span style="font-size:10px;color:#86EFAC;text-transform:uppercase;letter-spacing:0.05em">Logistics movement</span>`);
+      }
+      if (props.classification) rows.push(`<span style="font-size:11px">Route class: <b>${props.classification}</b></span>`);
+      if (props.purpose) rows.push(`<span style="font-size:11px">Purpose: ${props.purpose}</span>`);
+      if (props.modes) rows.push(`<span style="font-size:11px">Movement: ${props.modes}</span>`);
+      if (props.estimated_hours != null) rows.push(`<span style="font-size:11px">ETA: <b>${Number(props.estimated_hours).toFixed(1)}h</b></span>`);
+      if (props.waypoint_count != null) rows.push(`<span style="font-size:11px">Waypoints: <b>${props.waypoint_count}</b></span>`);
+      if (props.waypoint_chain) rows.push(`<span style="font-size:10px;color:#D1D5DB;max-width:300px;display:block;line-height:1.35">${String(props.waypoint_chain).slice(0, 260)}</span>`);
+      if (props.movement_summary) rows.push(`<span style="font-size:10px;color:#9CA3AF;max-width:300px;display:block;line-height:1.45">${String(props.movement_summary).slice(0, 240)}</span>`);
+      if (props.blocked_reason) rows.push(`<span style="font-size:10px;color:#FCA5A5;max-width:300px;display:block;line-height:1.45">${String(props.blocked_reason).slice(0, 240)}</span>`);
       if (props.poe_type) rows.push(`<span style="font-size:11px">POE Type: ${props.poe_type}</span>`);
       if (props.country) rows.push(`<span style="font-size:11px">Country: ${props.country}</span>`);
       if (props.waypoint_type) rows.push(`<span style="font-size:11px">Waypoint: ${String(props.waypoint_type).replace(/_/g, " ")}</span>`);
@@ -800,6 +817,7 @@ export function useMapboxMap(containerRef: React.RefObject<HTMLDivElement | null
       const corridorLayers = [
         ...phantomLayerIdsRef.current,
         "formal-routes-line",
+        ...LOGISTICS_ROUTE_LINE_LAYER_IDS,
         ...pointLayers,
       ].filter(id => map.getLayer(id));
 
