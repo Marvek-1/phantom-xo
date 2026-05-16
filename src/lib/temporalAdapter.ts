@@ -179,19 +179,48 @@ function getLineAnchor(coordinates: [number, number][]): CorridorAnchor | null {
 
 async function fetchFlows(): Promise<TemporalFlowRow[]> {
   return queryNeon<TemporalFlowRow>(
-    `SELECT * FROM temporal_flows ORDER BY period_start ASC`
+    `SELECT id,
+            corridor_id,
+            timestamp AS period_start,
+            timestamp AS period_end,
+            flow_count,
+            direction AS flow_direction,
+            source AS source_report,
+            NULL::text AS source_url,
+            notes,
+            source_id AS provenance
+     FROM temporal_flows
+     ORDER BY timestamp ASC`
   );
 }
 
 async function fetchEvents(): Promise<TemporalEventRow[]> {
   return queryNeon<TemporalEventRow>(
-    `SELECT * FROM corridor_temporal_events ORDER BY event_date ASC`
+    `SELECT id,
+            corridor_id,
+            NULL::text AS crossing_point_id,
+            timestamp AS event_date,
+            event_type,
+            COALESCE(notes, event_subtype, event_type) AS description,
+            event_subtype AS flow_impact,
+            source
+     FROM temporal_events
+     ORDER BY timestamp ASC`
   );
 }
 
 async function fetchCrossingPointRows(): Promise<CrossingPointRow[]> {
   return queryNeon<CrossingPointRow>(
-    `SELECT * FROM real_crossing_points ORDER BY monthly_avg_flow DESC NULLS LAST`
+    `SELECT id,
+            name,
+            latitude AS lat,
+            longitude AS lng,
+            country_code AS country_a,
+            country_code AS country_b,
+            flow_count AS monthly_avg_flow,
+            source
+     FROM crossing_points
+     ORDER BY flow_count DESC NULLS LAST`
   );
 }
 

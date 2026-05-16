@@ -22,6 +22,12 @@ import {
   removeDeviationAnalyticsLayers,
   toggleDeviationAnalyticsLayers,
 } from "./mapbox/drawDeviationAnalytics";
+import { fetchLogisticsRoutes } from "@/integrations/neon/api/logistics";
+import {
+  drawLogisticsRoutes,
+  removeLogisticsRoutes,
+  toggleLogisticsRoutes,
+} from "./mapbox/drawLogisticsRoutes";
 import { ITURI_CRISIS_CORRIDOR, getIturiLineCoordinates } from "@/data/ituri-crisis-corridor";
 
 type BasemapMode = "custom" | "standard" | "standard-satellite";
@@ -167,6 +173,7 @@ export function useMapboxMap(containerRef: React.RefObject<HTMLDivElement | null
     officialPOEs: true,
     evidence: true,
     deviationAnalytics: false,
+    logisticsRoutes: true,
   });
 
   // ── Initialize map ──
@@ -494,6 +501,11 @@ export function useMapboxMap(containerRef: React.RefObject<HTMLDivElement | null
           toggleDeviationAnalyticsLayers(map, newVisible);
         }
         break;
+      case "logisticsRoutes":
+        if (map) {
+          toggleLogisticsRoutes(map, newVisible);
+        }
+        break;
       default:
         return;
     }
@@ -644,6 +656,7 @@ export function useMapboxMap(containerRef: React.RefObject<HTMLDivElement | null
     if (!selectedCorridorId) {
       // Deselect: remove deviation layers, clear drift
       removeDeviationAnalyticsLayers(map);
+      removeLogisticsRoutes(map);
       setLayerVisibility((prev) => ({ ...prev, deviationAnalytics: false }));
       clearDrift();
       return;
@@ -669,6 +682,32 @@ export function useMapboxMap(containerRef: React.RefObject<HTMLDivElement | null
     }
   }, [selectedCorridorId, mapReady, mode]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady || !selectedCorridorId) return;
+
+    let cancelled = false;
+    fetchLogisticsRoutes(selectedCorridorId)
+      .then((routes) => {
+        if (cancelled) return;
+        if (routes.length === 0) {
+          removeLogisticsRoutes(map);
+          return;
+        }
+        drawLogisticsRoutes(map, routes);
+        toggleLogisticsRoutes(map, layerVisibility.logisticsRoutes ?? true);
+        console.log(`[Mapbox] Logistics routes loaded: ${routes.length} for ${selectedCorridorId}`);
+      })
+      .catch((err) => {
+        console.warn("[Mapbox] Logistics routes unavailable:", err);
+        removeLogisticsRoutes(map);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedCorridorId, mapReady, layerVisibility.logisticsRoutes]);
+
   // ── Tooltip on hover ──
   useEffect(() => {
     const map = mapRef.current;
@@ -688,6 +727,7 @@ export function useMapboxMap(containerRef: React.RefObject<HTMLDivElement | null
       "phantom-poes-circle",
       "official-poes-circle",
       "ituri-crisis-nodes-circle",
+      "logistics-routes-waypoints",
     ];
 
     const DRIFT_LAYER_TIPS: Record<string, { title: string; desc: string }> = {
@@ -727,6 +767,10 @@ export function useMapboxMap(containerRef: React.RefObject<HTMLDivElement | null
       if (props.description) rows.push(`<span style="font-size:10px;color:#9CA3AF;max-width:280px;display:block">${String(props.description).slice(0, 200)}</span>`);
       if (props.poe_type) rows.push(`<span style="font-size:11px">POE Type: ${props.poe_type}</span>`);
       if (props.country) rows.push(`<span style="font-size:11px">Country: ${props.country}</span>`);
+      if (props.waypoint_type) rows.push(`<span style="font-size:11px">Waypoint: ${String(props.waypoint_type).replace(/_/g, " ")}</span>`);
+      if (props.operator) rows.push(`<span style="font-size:11px">Operator: ${props.operator}</span>`);
+      if (props.leg_km != null) rows.push(`<span style="font-size:11px">Leg: <b>${Number(props.leg_km).toFixed(0)} km</b></span>`);
+      if (props.notes) rows.push(`<span style="font-size:10px;color:#9CA3AF;max-width:280px;display:block">${String(props.notes).slice(0, 200)}</span>`);
       return `<div style="display:flex;flex-direction:column;gap:2px;padding:2px;font-family:monospace">${rows.join("")}</div>`;
     }
 
@@ -911,6 +955,7 @@ export function useMapboxMap(containerRef: React.RefObject<HTMLDivElement | null
       const map = mapRef.current;
       if (map) {
         removeDeviationAnalyticsLayers(map);
+        removeLogisticsRoutes(map);
       }
       if (pollingIntervalRef.current) {
         clearInterval(pollingIntervalRef.current);

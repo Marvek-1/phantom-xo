@@ -5,6 +5,12 @@
 
 import { queryNeon } from "../client";
 import type { CorridorScore, EvidenceAtom, SentinelSignal } from "../types";
+import {
+  buildRecommendationSummary,
+  fetchLogisticsRoutes,
+  type LogisticsRouteWithWaypoints,
+  type RouteClassification,
+} from "./logistics";
 
 function haversineKm(aLat: number, aLng: number, bLat: number, bLng: number): number {
   const R = 6371;
@@ -22,6 +28,7 @@ export const MCP_TOOLS = [
   { name: "radar_scan", description: "Active monitoring pulse on a corridor." },
   { name: "analyze_corridor", description: "Full intelligence scoring for a corridor." },
   { name: "fetch_sentinel_signals", description: "Fetch live signals near a location." },
+  { name: "plan_supply_route", description: "Plan a supply delivery route for an active corridor." },
   { name: "test_connections", description: "Run diagnostic check on all service connections." },
 ];
 
@@ -92,6 +99,73 @@ export async function handleMcpTool(
       }
     }
 
+    case "plan_supply_route": {
+      const {
+        corridor_id,
+        corridorId,
+        supply_class,
+        classification_filter,
+      } = args as {
+        corridor_id?: string;
+        corridorId?: string;
+        supply_class?: string;
+        classification_filter?: RouteClassification;
+      };
+      const id = corridor_id ?? corridorId;
+      if (!id) return { text: "plan_supply_route requires corridor_id.", isError: true };
+
+      const routes = await fetchLogisticsRoutes(id);
+      if (routes.length === 0) {
+        return {
+          text: `No logistics routes computed for corridor ${id}.`,
+          mapParams: { corridor_id: id },
+        };
+      }
+
+      let candidates = routes;
+      if (supply_class) {
+        const wanted = supply_class.toUpperCase();
+        const matched = routes.filter((route) =>
+          route.supply_classes.some((supplyClass) => supplyClass.toUpperCase().includes(wanted))
+        );
+        if (matched.length > 0) candidates = matched;
+      }
+      if (classification_filter) {
+        candidates = candidates.filter((route) => route.classification === classification_filter);
+      }
+
+      const recommended =
+        candidates.find((route) => route.classification === "PRIMARY") ??
+        candidates.find((route) => route.classification === "ALTERNATE") ??
+        candidates[0];
+
+      if (!recommended) {
+        return { text: `No viable route found for corridor ${id}.`, mapParams: { corridor_id: id } };
+      }
+
+      const waypoints = [...recommended.waypoints].sort((a, b) => a.seq - b.seq);
+      const origin = waypoints[0];
+      const destination = waypoints[waypoints.length - 1];
+      const center = origin && destination
+        ? [(origin.lng + destination.lng) / 2, (origin.lat + destination.lat) / 2]
+        : destination
+          ? [destination.lng, destination.lat]
+          : undefined;
+
+      return {
+        text: `${buildRecommendationSummary(routes)}\n\n${buildRouteDetail(recommended, routes, supply_class)}`,
+        mapParams: {
+          center,
+          zoom: 6.2,
+          pitch: 50,
+          bearing: 0,
+          corridor_id: id,
+          route_id: recommended.id,
+          focus_route: recommended.id,
+        },
+      };
+    }
+
     case "radar_scan": {
       const { corridorId } = args as any;
       return {
@@ -102,4 +176,47 @@ export async function handleMcpTool(
     default:
       return { text: `Unknown tool: ${name}`, isError: true };
   }
+}
+
+function buildRouteDetail(
+  recommended: LogisticsRouteWithWaypoints,
+  routes: LogisticsRouteWithWaypoints[],
+  supplyClass?: string
+): string {
+  const lines = [
+    `Recommended: ${recommended.name}`,
+    `  - Risk: ${recommended.risk_class} (score ${recommended.risk_score.toFixed(2)})`,
+    `  - Distance: ${Math.round(recommended.total_km)}km, ETA ~${recommended.estimated_hours.toFixed(1)}h`,
+    `  - Modes: ${recommended.modes.join(" -> ")}`,
+    `  - Cold-chain capable: ${recommended.cold_chain_capable ? "yes" : "no"}`,
+    `  - Cost class: ${recommended.cost_class}`,
+  ];
+
+  if (recommended.formal_crossings_used.length) {
+    lines.push(`  - Formal crossings: ${recommended.formal_crossings_used.join(", ")}`);
+  }
+  if (recommended.derived_from_evidence.length) {
+    lines.push(`  - Derived from evidence: ${recommended.derived_from_evidence.slice(0, 5).join(", ")}`);
+  }
+  if (recommended.waypoints.length) {
+    lines.push(`  - Route: ${recommended.waypoints.sort((a, b) => a.seq - b.seq).map((w) => w.name).join(" -> ")}`);
+  }
+
+  const blocked = routes.filter((route) => route.classification === "BLOCKED");
+  if (blocked.length > 0) {
+    lines.push("", `Rejected routes (${blocked.length}):`);
+    for (const route of blocked.slice(0, 3)) {
+      lines.push(`  - ${route.name}`);
+      if (route.blocked_reason) lines.push(`    Reason: ${route.blocked_reason}`);
+    }
+  }
+
+  if (supplyClass) {
+    const matches = recommended.supply_classes.some((s) => s.toUpperCase().includes(supplyClass.toUpperCase()));
+    if (!matches) {
+      lines.push("", `Note: supply class "${supplyClass}" did not match the recommended route manifest; verify compatibility before dispatch.`);
+    }
+  }
+
+  return lines.join("\n");
 }

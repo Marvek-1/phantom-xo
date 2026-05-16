@@ -11,6 +11,7 @@ export * from "./entropy";
 export * from "./evidence";
 export * from "./friction";
 export * from "./lane";
+export * from "./logistics";
 export * from "./poll";
 export * from "./temporal";
 export * from "./diagnostics";

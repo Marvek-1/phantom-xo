@@ -73,6 +73,7 @@ const LAYER_DEFS = [
   { key: "officialPOEs", label: "Official POEs", color: "hsl(217, 91%, 60%)", tip: "Known formal points of entry and monitored border gates." },
   { key: "evidence", label: "Evidence Signals", color: "hsl(var(--phantom-amber))", tip: "Time-stamped signals from flows, events, health, conflict, and static live seeds." },
   { key: "deviationAnalytics", label: "Deviation Heatline", color: "#EF4444", tip: "Selected-corridor analysis showing where phantom movement diverges from monitored roads." },
+  { key: "logisticsRoutes", label: "Logistics Routes", color: "#22C55E", tip: "Evidence-derived response routes for the selected corridor: primary, alternate, contingency, and blocked." },
 ];
 
 const MapLegend = ({
@@ -315,6 +316,29 @@ const MapLegend = ({
             {/* MONITORED — Formal routes */}
             <div className="pt-2 mt-1.5 border-t border-border">
               <PanelLabel
+                label="Logistics Routes"
+                className="text-green-400 mb-1.5"
+                tip="Response routing generated from current evidence. Green is primary, amber is alternate, red is blocked or rejected."
+              />
+              <LegendItem
+                label="Primary delivery"
+                swatch={<LogisticsLineSwatch color="#22C55E" dash="6 3" />}
+                tip="Recommended route with lowest current operational risk for the corridor."
+              />
+              <LegendItem
+                label="Alternate delivery"
+                swatch={<LogisticsLineSwatch color="#F59E0B" dash="4 4" />}
+                tip="Backup route for bulk or non-cold-chain supplies when the primary path is not suitable."
+              />
+              <LegendItem
+                label="Blocked / rejected"
+                swatch={<LogisticsLineSwatch color="#EF4444" dash="2 5" />}
+                tip="Route rejected by current evidence, usually conflict, closure, or convoy-risk pressure."
+              />
+            </div>
+
+            <div className="pt-2 mt-1.5 border-t border-border">
+              <PanelLabel
                 label="Formal Routes"
                 className="text-[hsl(217,91%,60%)] mb-1.5"
                 tip="Road-snapped official routes, formal gates, and monitored flow points paired against phantom movement."
@@ -544,6 +568,14 @@ function DriftVectorSwatch() {
       </defs>
       <line x1="1" y1="4" x2="16" y2="4" stroke="url(#dv-grad)" strokeWidth="2" />
       <polyline points="13,1 16,4 13,7" fill="none" stroke="#F5A623" strokeWidth="1.5" />
+    </svg>
+  );
+}
+
+function LogisticsLineSwatch({ color, dash }: { color: string; dash: string }) {
+  return (
+    <svg width="20" height="6" viewBox="0 0 20 6">
+      <line x1="0" y1="3" x2="20" y2="3" stroke={color} strokeWidth="2" strokeDasharray={dash} />
     </svg>
   );
 }
