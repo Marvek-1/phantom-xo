@@ -11,6 +11,7 @@ import {
   type LogisticsRouteWithWaypoints,
   type RouteClassification,
 } from "./logistics";
+import { ITURI_CRISIS_CORRIDOR } from "@/data/ituri-crisis-corridor";
 
 function haversineKm(aLat: number, aLng: number, bLat: number, bLng: number): number {
   const R = 6371;
@@ -73,7 +74,29 @@ export async function handleMcpTool(
         [corridorId]
       );
       const score = scores[0];
-      if (!score) return { text: `No scoring data for corridor ${corridorId}` };
+      if (!score) {
+        if (corridorId === ITURI_CRISIS_CORRIDOR.id) {
+          return {
+            text: [
+              `◉ Corridor ${ITURI_CRISIS_CORRIDOR.id} — Score: ${ITURI_CRISIS_CORRIDOR.score.toFixed(2)} (${ITURI_CRISIS_CORRIDOR.riskClass})`,
+              `  Route: ${ITURI_CRISIS_CORRIDOR.startNode} -> ${ITURI_CRISIS_CORRIDOR.endNode}`,
+              `  Region: ${ITURI_CRISIS_CORRIDOR.region}`,
+              `  Mode: ${ITURI_CRISIS_CORRIDOR.mode} · ${ITURI_CRISIS_CORRIDOR.totalKm}km · ${ITURI_CRISIS_CORRIDOR.velocityKmDay}km/day`,
+              `  Evidence atoms: ${ITURI_CRISIS_CORRIDOR.evidence.length}`,
+              `  Anchor: Ebola confirmation at Mongwalu/Rwampara, imported case leakage at Goli, ADF pressure feeding displacement.`,
+              `  Logistics: ask plan_supply_route with corridor_id=${ITURI_CRISIS_CORRIDOR.id} to highlight the primary/alternate/blocked response paths.`,
+            ].join("\n"),
+            mapParams: {
+              center: [30.55, 1.85],
+              zoom: 6.2,
+              pitch: 50,
+              bearing: 0,
+              corridor_id: ITURI_CRISIS_CORRIDOR.id,
+            },
+          };
+        }
+        return { text: `No scoring data for corridor ${corridorId}` };
+      }
 
       const atoms = await queryNeon<EvidenceAtom>(
         `SELECT * FROM evidence_atoms WHERE corridor_score_id = $1 LIMIT 10`,

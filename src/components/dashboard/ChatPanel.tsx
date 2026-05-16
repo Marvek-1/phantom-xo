@@ -6,6 +6,8 @@ import { callMcpTool } from "@/lib/mcp-client";
 import { streamOllam, extractToolCalls } from "@/lib/ollam-stream";
 
 const EXAMPLE_PROMPTS = [
+  "Plan a vaccine supply route for CORRIDOR-CD-UG-ITU-001.",
+  "Analyze the Ituri crisis corridor and show the logistics route.",
   "Fly to the corridor between Lwanda KE and Bunda TZ.",
   "Analyze CORRIDOR-KE-TZ-047 — start at -0.60,34.10 end at -2.45,33.80.",
   "What corridors are active near Lake Victoria?",

@@ -118,6 +118,13 @@ export interface MapParams {
   corridorAnalysis?: CorridorAnalysisResult;
   signals?: SignalSummary;
   radar?: RadarPulse;
+  center?: [number, number];
+  zoom?: number;
+  pitch?: number;
+  bearing?: number;
+  corridor_id?: string;
+  route_id?: string;
+  focus_route?: string;
 }
 
 export enum ChatState {

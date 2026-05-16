@@ -553,6 +553,24 @@ export function useMapboxMap(containerRef: React.RefObject<HTMLDivElement | null
   // ── Map query (from chat/MCP) ──
   const handleMapQuery = useCallback((params: MapParams) => {
     if (params.camera) flyTo(params.camera);
+    if (params.center) {
+      const map = mapRef.current;
+      map?.flyTo({
+        center: params.center,
+        zoom: params.zoom ?? 6,
+        pitch: params.pitch ?? 45,
+        bearing: params.bearing ?? 0,
+        duration: 1800,
+      });
+    }
+    if (params.corridor_id) {
+      setSelectedCorridorId(params.corridor_id);
+    }
+    if (params.route_id || params.focus_route) {
+      setLayerVisibility((prev) => ({ ...prev, logisticsRoutes: true }));
+      const map = mapRef.current;
+      if (map) toggleLogisticsRoutes(map, true);
+    }
   }, [flyTo]);
 
   // ── Drift engine controls ──

@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 
 /* ── Mock data ── */
 const CORRIDORS = [
+  { id: "CORRIDOR-CD-UG-ITU-001", name: "Mongwalu -> Arua", risk: "CRITICAL", score: 94, mode: "mixed/logistics", hmm: "surge", signals: 11, delta: "+24" },
   { id: "C-NG-001", name: "Baga → Diffa", risk: "CRITICAL", score: 91, mode: "canoe", hmm: "surge", signals: 847, delta: "+12" },
   { id: "C-CD-003", name: "Goma → Gisenyi", risk: "CRITICAL", score: 89, mode: "foot", hmm: "surge", signals: 1203, delta: "+8" },
   { id: "C-NG-002", name: "Gwoza → Mora", risk: "CRITICAL", score: 87, mode: "foot/truck", hmm: "active", signals: 634, delta: "+5" },
@@ -27,6 +28,8 @@ const CORRIDORS = [
 ];
 
 const DETECTION_EVENTS = [
+  { id: "DET-ITU-001", severity: "critical", time: "live", summary: "Ituri crisis corridor active: Ebola anchor at Mongwalu/Rwampara with Uganda imported-case leakage at Goli", corridor: "CORRIDOR-CD-UG-ITU-001" },
+  { id: "DET-ITU-002", severity: "critical", time: "live", summary: "Logistics route computed: PRIMARY air bridge Entebbe -> Bunia -> Mongwalu, ALTERNATE ground convoy, south route BLOCKED", corridor: "CORRIDOR-CD-UG-ITU-001" },
   { id: "DET-001", severity: "critical", time: "2m ago", summary: "Surge detected: C-NG-001 Baga→Diffa score +12 in 48h", corridor: "C-NG-001" },
   { id: "DET-002", severity: "critical", time: "18m ago", summary: "New phantom POE activated near Renk (SD→ET corridor)", corridor: "C-SD-001" },
   { id: "DET-003", severity: "high", time: "1h ago", summary: "Entropy spike at Goma node — 3 new signal sources", corridor: "C-CD-003" },
@@ -35,6 +38,7 @@ const DETECTION_EVENTS = [
 ];
 
 const ENTROPY_NODES = [
+  { node: "Bunia/Ituri", hBaseline: 1.9, hCurrent: 3.9, deltaH: 2.0, spiked: true, signals: 11 },
   { node: "Goma", hBaseline: 2.1, hCurrent: 3.8, deltaH: 1.7, spiked: true, signals: 1203 },
   { node: "Baga", hBaseline: 1.8, hCurrent: 3.2, deltaH: 1.4, spiked: true, signals: 847 },
   { node: "Renk", hBaseline: 1.5, hCurrent: 2.8, deltaH: 1.3, spiked: true, signals: 512 },
@@ -89,6 +93,9 @@ const CommandCenter = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<Tab>("command");
   const [riskFilter, setRiskFilter] = useState<string>("all");
+  const totalSignals = CORRIDORS.reduce((sum, corridor) => sum + corridor.signals, 0);
+  const criticalCorridors = CORRIDORS.filter((corridor) => corridor.risk === "CRITICAL").length;
+  const entropySpikes = ENTROPY_NODES.filter((node) => node.spiked).length;
 
   const filteredCorridors = riskFilter === "all"
     ? CORRIDORS
@@ -159,8 +166,8 @@ const CommandCenter = () => {
         <div className="flex items-center justify-between px-5 py-2 border-t border-border bg-card/50">
           <div className="flex items-center gap-6 text-[10px] font-mono text-muted-foreground">
             <span>CORRIDORS: <strong className="text-foreground">{CORRIDORS.length}</strong></span>
-            <span>SIGNALS: <strong className="text-foreground">6,348</strong></span>
-            <span>ENTROPY: <strong className="text-destructive">3 SPIKES</strong></span>
+            <span>SIGNALS: <strong className="text-foreground">{totalSignals.toLocaleString()}</strong></span>
+            <span>ENTROPY: <strong className="text-destructive">{entropySpikes} SPIKES</strong></span>
           </div>
           <div className="flex items-center gap-2 text-[10px] font-mono text-muted-foreground">
             <div className="w-1.5 h-1.5 rounded-full bg-primary" />
@@ -202,7 +209,7 @@ const CommandCenter = () => {
               { name: "Database", ok: true },
               { name: "Signal Repo", ok: true },
               { name: "Edge Functions", ok: true },
-              { name: "Cesium Globe", ok: true },
+              { name: "Mapbox Layer", ok: true },
             ].map((l) => (
               <div key={l.name} className="flex items-center justify-between px-3 py-1 text-[10px] text-muted-foreground">
                 <span>{l.name}</span>
@@ -214,7 +221,13 @@ const CommandCenter = () => {
 
         {/* Main content */}
         <main className="flex-1 p-6 overflow-auto max-h-[calc(100vh-5.5rem)]">
-          {activeTab === "command" && <CommandTab />}
+          {activeTab === "command" && (
+            <CommandTab
+              activeCorridors={CORRIDORS.length}
+              criticalCorridors={criticalCorridors}
+              totalSignals={totalSignals}
+            />
+          )}
           {activeTab === "corridors" && (
             <CorridorsTab corridors={filteredCorridors} riskFilter={riskFilter} setRiskFilter={setRiskFilter} />
           )}
@@ -228,16 +241,24 @@ const CommandCenter = () => {
 };
 
 /* ── Command Tab ── */
-function CommandTab() {
+function CommandTab({
+  activeCorridors,
+  criticalCorridors,
+  totalSignals,
+}: {
+  activeCorridors: number;
+  criticalCorridors: number;
+  totalSignals: number;
+}) {
   return (
     <div className="space-y-6">
       {/* Stats grid */}
       <div className="grid grid-cols-4 gap-4">
         {[
-          { label: "ACTIVE CORRIDORS", value: "14", sub: "Across 7 countries", icon: Radio, color: "text-primary" },
-          { label: "CRITICAL RISK", value: "5", sub: "Surge state detected", icon: AlertTriangle, color: "text-destructive" },
-          { label: "TRUTH RATE", value: "94.2%", sub: "6,348 signals validated", icon: Eye, color: "text-primary" },
-          { label: "PHANTOM POEs", value: "23", sub: "Inferred crossings", icon: Zap, color: "text-[hsl(var(--phantom-amber))]" },
+          { label: "ACTIVE CORRIDORS", value: String(activeCorridors), sub: "Ituri live case included", icon: Radio, color: "text-primary" },
+          { label: "CRITICAL RISK", value: String(criticalCorridors), sub: "Surge state detected", icon: AlertTriangle, color: "text-destructive" },
+          { label: "TRUTH RATE", value: "94.2%", sub: `${totalSignals.toLocaleString()} signals validated`, icon: Eye, color: "text-primary" },
+          { label: "PHANTOM POEs", value: "24", sub: "Inferred crossings + Ituri gap", icon: Zap, color: "text-[hsl(var(--phantom-amber))]" },
         ].map((s) => (
           <Card key={s.label} className="bg-card/80 border-border">
             <CardContent className="p-4">
@@ -388,8 +409,8 @@ function TruthTab() {
 
       <div className="grid grid-cols-3 gap-4">
         {[
-          { label: "Total Signals", value: "6,348", icon: Database },
-          { label: "Truth Passed (>0.70)", value: "5,974", icon: Eye },
+          { label: "Total Signals", value: "6,359", icon: Database },
+          { label: "Truth Passed (>0.70)", value: "5,985", icon: Eye },
           { label: "Rejected", value: "374", icon: Lock },
         ].map((s) => (
           <Card key={s.label} className="bg-card/80 border-border">
@@ -409,10 +430,10 @@ function TruthTab() {
         </CardHeader>
         <CardContent className="space-y-3">
           {[
-            { name: "Freshness Gate", desc: "Signal age < 14 days", passed: 6102, failed: 246, rate: 96.1 },
-            { name: "Geo-Coherence Gate", desc: "Location within ±0.5° of known corridor", passed: 5989, failed: 359, rate: 94.3 },
-            { name: "Source Diversity Gate", desc: "≥2 independent sources confirm", passed: 5974, failed: 374, rate: 94.1 },
-            { name: "Mock Detection Gate", desc: "Synthetic/test signals flagged", passed: 6340, failed: 8, rate: 99.9 },
+            { name: "Freshness Gate", desc: "Signal age < 14 days", passed: 6113, failed: 246, rate: 96.1 },
+            { name: "Geo-Coherence Gate", desc: "Location within ±0.5° of known corridor", passed: 6000, failed: 359, rate: 94.4 },
+            { name: "Source Diversity Gate", desc: "≥2 independent sources confirm", passed: 5985, failed: 374, rate: 94.1 },
+            { name: "Mock Detection Gate", desc: "Synthetic/test signals flagged", passed: 6351, failed: 8, rate: 99.9 },
           ].map((g) => (
             <div key={g.name} className="space-y-1.5">
               <div className="flex items-center justify-between">
