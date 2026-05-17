@@ -8,6 +8,72 @@ function isOllamaNativeChatUrl(url: string) {
   return /\/api\/chat\/?$/.test(url);
 }
 
+function buildOfflineFallback(messages: Msg[]): string {
+  const last = messages[messages.length - 1]?.content?.toLowerCase() ?? "";
+
+  if (/\b(hi|hello|hey)\b/.test(last)) {
+    return [
+      "Phantom command layer online.",
+      "",
+      "The local dcx model bridge is not reachable from this browser session, but dashboard commands and map tools are still available.",
+      "Ask for the Ituri corridor, logistics route, evidence, or command-center status.",
+    ].join("\n");
+  }
+
+  if (last.includes("ituri") && (last.includes("route") || last.includes("logistic") || last.includes("supply") || last.includes("vaccine"))) {
+    return [
+      "Routing Ituri response logistics through the command tool.",
+      "",
+      "```tool",
+      JSON.stringify({
+        tool: "plan_supply_route",
+        args: {
+          corridor_id: "CORRIDOR-CD-UG-ITU-001",
+          supply_class: last.includes("vaccine") ? "VACCINE" : undefined,
+        },
+      }, null, 2),
+      "```",
+    ].join("\n");
+  }
+
+  if (last.includes("ituri") || last.includes("mongwalu") || last.includes("arua")) {
+    return [
+      "Analyzing the Ituri crisis corridor through the command tool.",
+      "",
+      "```tool",
+      JSON.stringify({
+        tool: "analyze_corridor",
+        args: { corridorId: "CORRIDOR-CD-UG-ITU-001" },
+      }, null, 2),
+      "```",
+    ].join("\n");
+  }
+
+  if (last.includes("diagnostic") || last.includes("connection")) {
+    return [
+      "Running connection diagnostics.",
+      "",
+      "```tool",
+      JSON.stringify({ tool: "test_connections", args: {} }, null, 2),
+      "```",
+    ].join("\n");
+  }
+
+  return [
+    "Phantom command fallback is active.",
+    "",
+    "The Ollama dcx model endpoint is not reachable from this browser session. You can still use command tools, including:",
+    "- analyze CORRIDOR-CD-UG-ITU-001",
+    "- plan a vaccine supply route for Ituri",
+    "- run diagnostics",
+  ].join("\n");
+}
+
+function emitFallback(messages: Msg[], onDelta: (chunk: string) => void, onDone: () => void) {
+  onDelta(buildOfflineFallback(messages));
+  onDone();
+}
+
 async function getChatHeaders(url: string): Promise<Record<string, string>> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -31,9 +97,8 @@ export async function streamOllam({
   signal?: AbortSignal;
 }) {
   if (!CHAT_URL) {
-    throw new Error(
-      "Ollama chat URL not configured. Set VITE_OLLAMA_HOST (e.g. http://localhost:11434) or VITE_API_OLLAM_CHAT_URL."
-    );
+    emitFallback(messages, onDelta, onDone);
+    return;
   }
 
   const isNative = isOllamaNativeChatUrl(CHAT_URL);
@@ -50,12 +115,20 @@ export async function streamOllam({
         thinking,
       };
 
-  const resp = await fetch(CHAT_URL, {
-    method: "POST",
-    headers: await getChatHeaders(CHAT_URL),
-    body: JSON.stringify(body),
-    signal,
-  });
+  let resp: Response;
+  try {
+    resp = await fetch(CHAT_URL, {
+      method: "POST",
+      headers: await getChatHeaders(CHAT_URL),
+      body: JSON.stringify(body),
+      signal,
+    });
+  } catch (err) {
+    if ((err as Error).name === "AbortError") throw err;
+    console.warn("[ollam] Chat endpoint unreachable; using command fallback", err);
+    emitFallback(messages, onDelta, onDone);
+    return;
+  }
 
   if (!resp.ok) {
     const body = await resp.json().catch(() => ({}));
